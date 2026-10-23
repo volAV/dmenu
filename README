@@ -22,3 +22,22 @@ Afterwards enter the following command to build and install dmenu
 Running dmenu
 -------------
 See the man page for details.
+
+
+Fuzzy matching regression check
+-------------------------------
+Build and run the headless matching probe with AddressSanitizer and
+UndefinedBehaviorSanitizer:
+
+    cc -std=c99 -g -O1 -fno-omit-frame-pointer -fsanitize=address,undefined \
+        -D_DEFAULT_SOURCE -D_XOPEN_SOURCE=700 -DVERSION='"5.4"' -DXINERAMA \
+        -I/usr/include/freetype2 tests/fuzzymatch.c drw.c util.c \
+        -lX11 -lXinerama -lfontconfig -lXft -lm -o /tmp/fuzzymatch-check
+    ASAN_OPTIONS=detect_leaks=0 UBSAN_OPTIONS=halt_on_error=1 \
+        /tmp/fuzzymatch-check a a aab axa
+
+Leak detection is disabled only because initializing linked Fontconfig can
+report its known unrelated leak; address and undefined-behavior checks remain
+enabled. The probe exercises the real matching implementation without an X
+server. Pass `-i`, `-F`, a query, and item labels as arguments to check other
+cases.
