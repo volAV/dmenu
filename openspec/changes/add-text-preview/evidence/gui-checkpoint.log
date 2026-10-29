@@ -1,0 +1,50 @@
+PASS preview-cli-validation: 8 invalid invocations rejected before display access
+PASS horizontal-empty-enter: baseline=(b'alpha\n', 0), binary=(b'alpha\n', 0), expected=(b'alpha\n', 0)
+PASS horizontal-empty-enter-appearance: baseline/new screenshots are pixel-identical
+PASS horizontal-down-enter: baseline=(b'beta\n', 0), binary=(b'beta\n', 0), expected=(b'beta\n', 0)
+PASS horizontal-escape: baseline=(b'', 1), binary=(b'', 1), expected=(b'', 1)
+PASS horizontal-fuzzy-filter: baseline=(b'alpha\n', 0), binary=(b'alpha\n', 0), expected=(b'alpha\n', 0)
+PASS vertical-navigation: baseline=(b'beta\n', 0), binary=(b'beta\n', 0), expected=(b'beta\n', 0)
+PASS vertical-navigation-appearance: baseline/new screenshots are pixel-identical
+PASS vertical-no-fuzzy-filter: baseline=(b'alpha\n', 0), binary=(b'alpha\n', 0), expected=(b'alpha\n', 0)
+PASS case-insensitive-filter: baseline=(b'alpha\n', 0), binary=(b'alpha\n', 0), expected=(b'alpha\n', 0)
+PASS fuzzy-subsequence: baseline=(b'alpha\n', 0), binary=(b'alpha\n', 0), expected=(b'alpha\n', 0)
+PASS token-rejects-subsequence: baseline=(b'apha\n', 0), binary=(b'apha\n', 0), expected=(b'apha\n', 0)
+PASS token-case-insensitive: baseline=(b'alpha\n', 0), binary=(b'alpha\n', 0), expected=(b'alpha\n', 0)
+PASS empty-list-escape: baseline=(b'', 1), binary=(b'', 1), expected=(b'', 1)
+PASS short-list-enter: baseline=(b'one\n', 0), binary=(b'one\n', 0), expected=(b'one\n', 0)
+PASS explicit-monitor: baseline=(b'Alpine\n', 0), binary=(b'Alpine\n', 0), expected=(b'Alpine\n', 0)
+PASS vertical-page-selection: baseline=(b'beta\n', 0), binary=(b'beta\n', 0), expected=(b'beta\n', 0)
+PASS vertical-home-selection: baseline=(b'alpha\n', 0), binary=(b'alpha\n', 0), expected=(b'alpha\n', 0)
+PASS long-label-enter: baseline=(b'long-label-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n', 0), binary=(b'long-label-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n', 0), expected=(b'long-label-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n', 0)
+PASS preview-enter: stdout/status=(b'green\n', 0)
+PASS preview-escape: stdout/status=(b'', 1)
+PASS preview-no-match-enter: stdout/status=(b'z\n', 0)
+PASS preview-fuzzy-subsequence: stdout/status=(b'green\n', 0)
+PASS preview-token-subsequence: stdout/status=(b'gn\n', 0)
+PASS preview-case-insensitive: stdout/status=(b'red\n', 0)
+PASS preview-tab: stdout/status=(b'green\n', 0)
+PASS preview-ctrl-return: stdout/status=(b'red\ngreen\n', 0)
+PASS preview-shift-return: stdout/status=(b'gn\n', 0)
+PASS preview-long-label: stdout/status=(b'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n', 0)
+PASS preview-selection-pixel: sample (1,28) changed srgb(0,85,119) -> srgb(34,34,34); screenshots: /tmp/dmenu-preview-refinement-UCKryj/screenshots/preview-geometry-before.png, /tmp/dmenu-preview-refinement-UCKryj/screenshots/preview-geometry-after.png
+PASS preview-divider-ratio: boundary x≈767/1920 (0.40); pixels srgb(34,34,34), srgb(187,187,187), srgb(34,34,34)
+PASS preview-visible-text: right-pane pixel deviations: short=0.0337639, multiline=0.0897473
+PASS preview-selection-content: navigation changes rendered pixels strictly inside the right pane
+PASS preview-multiline-blank-line: blank row deviation=0.0, following paragraph=0.102655
+PASS preview-unicode-content: third selection renders a distinct nonblank Unicode preview: /tmp/dmenu-preview-refinement-UCKryj/screenshots/preview-unicode.png
+PASS preview-return-content: returning to the previous selection restores its rendered preview
+PASS preview-geometry: geometry={'Absolute upper-left X': 0, 'Absolute upper-left Y': 0, 'Width': 1920, 'Height': 114}; screenshots: /tmp/dmenu-preview-refinement-UCKryj/screenshots/preview-geometry-before.png, /tmp/dmenu-preview-refinement-UCKryj/screenshots/preview-geometry-after.png
+PASS preview-zero-matches-clear: right-pane pixel deviation 0.0337639 -> 0.0
+PASS preview-empty-matches: geometry={'Absolute upper-left X': 0, 'Absolute upper-left Y': 0, 'Width': 1920, 'Height': 114}; screenshots: /tmp/dmenu-preview-refinement-UCKryj/screenshots/preview-empty-matches-before.png, /tmp/dmenu-preview-refinement-UCKryj/screenshots/preview-empty-matches-after.png
+PASS preview-empty-input: geometry={'Absolute upper-left X': 0, 'Absolute upper-left Y': 0, 'Width': 1920, 'Height': 114}; screenshots: /tmp/dmenu-preview-refinement-UCKryj/screenshots/preview-empty-input-before.png, /tmp/dmenu-preview-refinement-UCKryj/screenshots/preview-empty-input-after.png
+PASS preview-one-item: geometry={'Absolute upper-left X': 0, 'Absolute upper-left Y': 0, 'Width': 1920, 'Height': 114}; screenshots: /tmp/dmenu-preview-refinement-UCKryj/screenshots/preview-one-item-before.png, /tmp/dmenu-preview-refinement-UCKryj/screenshots/preview-one-item-after.png
+PASS preview-bottom: geometry={'Absolute upper-left X': 0, 'Absolute upper-left Y': 966, 'Width': 1920, 'Height': 114}; screenshots: /tmp/dmenu-preview-refinement-UCKryj/screenshots/preview-bottom-before.png, /tmp/dmenu-preview-refinement-UCKryj/screenshots/preview-bottom-after.png
+PASS preview-clamped-rows: geometry={'Absolute upper-left X': 0, 'Absolute upper-left Y': 0, 'Width': 1920, 'Height': 1064}; screenshots: /tmp/dmenu-preview-refinement-UCKryj/screenshots/preview-clamped-rows-before.png, /tmp/dmenu-preview-refinement-UCKryj/screenshots/preview-clamped-rows-after.png
+PASS preview-max-rows: geometry={'Absolute upper-left X': 0, 'Absolute upper-left Y': 0, 'Width': 1920, 'Height': 1064}; screenshots: /tmp/dmenu-preview-refinement-UCKryj/screenshots/preview-max-rows-before.png, /tmp/dmenu-preview-refinement-UCKryj/screenshots/preview-max-rows-after.png
+PASS preview-long-prompt: geometry={'Absolute upper-left X': 0, 'Absolute upper-left Y': 0, 'Width': 1920, 'Height': 114}; screenshots: /tmp/dmenu-preview-refinement-UCKryj/screenshots/preview-long-prompt-before.png, /tmp/dmenu-preview-refinement-UCKryj/screenshots/preview-long-prompt-after.png
+PASS preview-requested-rows: preview height=114, no-preview short-list height=76
+PASS embedded-parent-clamp: geometry={'Absolute upper-left X': 5, 'Absolute upper-left Y': 5, 'Width': 520, 'Height': 133}; screenshot: /tmp/dmenu-preview-refinement-UCKryj/screenshots/preview-embedded-parent.png
+PASS embedded-parent-bottom: geometry={'Absolute upper-left X': 5, 'Absolute upper-left Y': 22, 'Width': 520, 'Height': 133}
+PASS impossible-parent-dimensions: fixture exited 1: preview geometry is too small
+PASS screenshots: /tmp/dmenu-preview-refinement-UCKryj/screenshots/preview-geometry-before.png, /tmp/dmenu-preview-refinement-UCKryj/screenshots/preview-geometry-after.png, /tmp/dmenu-preview-refinement-UCKryj/screenshots/preview-unicode.png, /tmp/dmenu-preview-refinement-UCKryj/screenshots/preview-empty-matches-before.png, /tmp/dmenu-preview-refinement-UCKryj/screenshots/preview-empty-matches-after.png, /tmp/dmenu-preview-refinement-UCKryj/screenshots/preview-empty-input-before.png, /tmp/dmenu-preview-refinement-UCKryj/screenshots/preview-empty-input-after.png, /tmp/dmenu-preview-refinement-UCKryj/screenshots/preview-one-item-before.png, /tmp/dmenu-preview-refinement-UCKryj/screenshots/preview-one-item-after.png, /tmp/dmenu-preview-refinement-UCKryj/screenshots/preview-bottom-before.png, /tmp/dmenu-preview-refinement-UCKryj/screenshots/preview-bottom-after.png, /tmp/dmenu-preview-refinement-UCKryj/screenshots/preview-clamped-rows-before.png, /tmp/dmenu-preview-refinement-UCKryj/screenshots/preview-clamped-rows-after.png, /tmp/dmenu-preview-refinement-UCKryj/screenshots/preview-max-rows-before.png, /tmp/dmenu-preview-refinement-UCKryj/screenshots/preview-max-rows-after.png, /tmp/dmenu-preview-refinement-UCKryj/screenshots/preview-long-prompt-before.png, /tmp/dmenu-preview-refinement-UCKryj/screenshots/preview-long-prompt-after.png, /tmp/dmenu-preview-refinement-UCKryj/screenshots/preview-embedded-parent.png

@@ -1,0 +1,187 @@
+{
+  "changeName": "add-text-preview",
+  "changeDir": "/home/avo/Projects/private/dmenu/openspec/changes/add-text-preview",
+  "schemaName": "spec-driven",
+  "contextFiles": {
+    "proposal": [
+      "/home/avo/Projects/private/dmenu/openspec/changes/add-text-preview/proposal.md"
+    ],
+    "specs": [
+      "/home/avo/Projects/private/dmenu/openspec/changes/add-text-preview/specs/clipmenu-preview/spec.md",
+      "/home/avo/Projects/private/dmenu/openspec/changes/add-text-preview/specs/text-preview/spec.md"
+    ],
+    "design": [
+      "/home/avo/Projects/private/dmenu/openspec/changes/add-text-preview/design.md"
+    ],
+    "tasks": [
+      "/home/avo/Projects/private/dmenu/openspec/changes/add-text-preview/tasks.md"
+    ]
+  },
+  "progress": {
+    "total": 21,
+    "complete": 10,
+    "remaining": 11
+  },
+  "tasks": [
+    {
+      "id": "1",
+      "description": "1.1 Preserve the user's working-tree configuration and outputs; build a pre-change baseline in a disposable workspace and record HEAD, header and compiler flags. Verify the baseline runs `-v`, `stest -f dmenu.c`, and a finite real X11 menu on an isolated display; record any pre-existing warnings/errors separately.",
+      "done": true,
+      "sourcePath": "/home/avo/Projects/private/dmenu/openspec/changes/add-text-preview/tasks.md",
+      "line": 9
+    },
+    {
+      "id": "2",
+      "description": "1.2 Add `-P` parsing for an absolute executable path and require an effective positive `-l`, validating before keyboard grab. Document the option/requirements in usage and `dmenu.1`. Verify missing/relative paths and absent/zero rows exit 1 without a grab, while missing executable files become recoverable preview errors at runtime.",
+      "done": true,
+      "sourcePath": "/home/avo/Projects/private/dmenu/openspec/changes/add-text-preview/tasks.md",
+      "line": 10
+    },
+    {
+      "id": "3",
+      "description": "1.3 Preserve no-preview control flow and local header customizations, avoiding new config fields. Verify clean warning-enabled C99 builds with distributed defaults and a copied customized `config.h`, preserving `-lm`, fuzzy defaults, local prefix and existing CLI flags. If guarded OpenBSD code changes, account for preview proc/exec pledge promises without weakening default promises; record platform verification limits.",
+      "done": true,
+      "sourcePath": "/home/avo/Projects/private/dmenu/openspec/changes/add-text-preview/tasks.md",
+      "line": 11
+    },
+    {
+      "id": "4",
+      "description": "2.1 Before subprocess infrastructure, add opt-in full-width input plus 40/60 body using development-only synthetic preview text. Preserve requested body rows independently of item count, bound monitor/embedded geometry and reuse highlighting/paging. Verify top/bottom/monitor/embed layouts, short/empty lists, zero matches and unreadably small dimensions against the baseline; no helper launch or I/O infrastructure is needed for this increment.",
+      "done": true,
+      "sourcePath": "/home/avo/Projects/private/dmenu/openspec/changes/add-text-preview/tasks.md",
+      "line": 15
+    },
+    {
+      "id": "5",
+      "description": "2.2 On isolated Xvfb/Xephyr, capture a synthetic-content screenshot and exercise actual keyboard selection/filtering. Verify selected-item highlighting, readable text, approximately 40/60 pane proportions, stable geometry through selection/short-list/zero-match transitions, unchanged selected-label stdout, and no-preview appearance/navigation against baseline. Record the evidence before beginning group 3; this checkpoint does not relax final acceptance. Document the geometry, and keep temporary content injection out of the final production interface.",
+      "done": true,
+      "sourcePath": "/home/avo/Projects/private/dmenu/openspec/changes/add-text-preview/tasks.md",
+      "line": 16
+    },
+    {
+      "id": "6",
+      "description": "3.1 Implement direct `execv` and the single active child-group request slot with nonblocking stdin/stdout pipes, close-on-exec/unused-fd cleanup, content-free stderr handling, SIGPIPE/EINTR/EAGAIN handling, generation ownership and central selected-item reconciliation. Verify literal labels (including whitespace/metacharacters/UTF-8 and very long stdin labels) reach a synthetic helper byte-for-byte with no content argv, shell evaluation, inherited X fd or log output.",
+      "done": true,
+      "sourcePath": "/home/avo/Projects/private/dmenu/openspec/changes/add-text-preview/tasks.md",
+      "line": 20
+    },
+    {
+      "id": "7",
+      "description": "3.2 Integrate XPending-aware bounded event batches and poll with 40 ms debounce and a 1000 ms monotonic deadline from launch covering execution, stdin delivery, stdout collection and process completion, excluding text preparation. Verify nonreading/delayed helpers, stdout-close-then-hang and rapid selection churn leave input/cancel responsive and never publish stale results; EOF without process completion must still time out.",
+      "done": true,
+      "sourcePath": "/home/avo/Projects/private/dmenu/openspec/changes/add-text-preview/tasks.md",
+      "line": 21
+    },
+    {
+      "id": "8",
+      "description": "3.3 Bound reads to 4 KiB per turn, retain at most 65536 bytes and use a one-byte overflow probe. Verify 65535/65536/65537-byte cases: exact-limit EOF/exit-0 before deadline succeeds without truncation; observed overflow followed by menu SIGKILL/signalled or nonzero exit stays Truncated rather than Unavailable/Timed out; ordinary below-cap nonzero exit discards partial text as Unavailable. Record terminal cause independently of the later wait status.",
+      "done": true,
+      "sourcePath": "/home/avo/Projects/private/dmenu/openspec/changes/add-text-preview/tasks.md",
+      "line": 22
+    },
+    {
+      "id": "9",
+      "description": "3.4 Finish teardown for result/error/cancel/destruction/exit, including remaining cooperative descendants on successful completion. Ungrab/flush the keyboard promptly, never wait for helper termination on exit, and reap direct children nonblocking while running before reusing their slot. Verify early stdin close, failed exec, Ctrl-Return and inherited stdout through repeated changes; separately observe eventual cooperative-group termination within 2000 ms from SIGKILL dispatch, not disappearance when the handler/menu returns. Do not claim containment of intentional group escapees; an external fixture must clean up its own escapees. Keep one compact isolated-X11 regression check covering stale results, timeout/overflow precedence and eventual teardown.",
+      "done": true,
+      "sourcePath": "/home/avo/Projects/private/dmenu/openspec/changes/add-text-preview/tasks.md",
+      "line": 23
+    },
+    {
+      "id": "10",
+      "description": "3.5 Connect real helper results to the validated panes and remove development-only synthetic content injection without leaving a fake fallback or fixture CLI. Document protocol, terminal-state precedence, deadline scope, cap and trusted-group limits. Verify each documented state with synthetic executable helpers and rerun the early screenshot/navigation checks using their real stdin/stdout protocol.",
+      "done": true,
+      "sourcePath": "/home/avo/Projects/private/dmenu/openspec/changes/add-text-preview/tasks.md",
+      "line": 24
+    },
+    {
+      "id": "11",
+      "description": "4.1 Implement bounded preview-only sanitization and soft wrapping with existing font measurement, explicit byte lengths/NUL handling, UTF-8 boundaries, four-column tabs, control replacement and blank lines. Process at most 256 codepoints per event-loop turn, with separate allocation/work ceilings and cancellation; helper deadline ends at collection/process completion, not layout completion. Verify malformed/read-split/cap-split UTF-8, CJK/emoji/combining text, long lines and CR/ESC/C0/C1/DEL. Prove a successful helper whose preparation finishes after launch + 1000 ms does not time out and input remains serviceable. Keep one compact malformed-text/wrap-progress regression check and run ASan/UBSan on it.",
+      "done": false,
+      "sourcePath": "/home/avo/Projects/private/dmenu/openspec/changes/add-text-preview/tasks.md",
+      "line": 28
+    },
+    {
+      "id": "12",
+      "description": "4.2 Add preview-only Alt-Up/Down, Alt-PageUp/PageDown and Alt-Home/End; clamp offsets and reset only on selection changes. Document keys and text limits. Verify scrolling reaches every retained row without editing input, changing selection or emitting stdout, while original Alt-letter, Ctrl and ordinary navigation remain unchanged.",
+      "done": false,
+      "sourcePath": "/home/avo/Projects/private/dmenu/openspec/changes/add-text-preview/tasks.md",
+      "line": 29
+    },
+    {
+      "id": "13",
+      "description": "4.3 Exercise initial selection, Up/Down, Ctrl-n/p, paging, Home/End, typing, deletion, Tab and paste in fuzzy and `-F` modes with and without `-i`. Verify preview identity and selected output against baseline, same-selection redraws do not respawn, and no-match transitions clear stale content without collapsing the body.",
+      "done": false,
+      "sourcePath": "/home/avo/Projects/private/dmenu/openspec/changes/add-text-preview/tasks.md",
+      "line": 30
+    },
+    {
+      "id": "14",
+      "description": "5.1 Add the small standalone `clipmenu-preview` POSIX shell helper with exact installed-launcher environment defaults, original-label stdin reading and complete `cksum` filename including byte count; stream payload bytes without command substitution. Verify `sh -n clipmenu-preview`, checksum equivalence to installed Bash here-strings, unset/empty environment precedence and byte-identical multiline/trailing-newline fixture stdout.",
+      "done": false,
+      "sourcePath": "/home/avo/Projects/private/dmenu/openspec/changes/add-text-preview/tasks.md",
+      "line": 34
+    },
+    {
+      "id": "15",
+      "description": "5.2 Add private-directory ownership/mode and final-component symlink checks, safe USER validation, regular nonsymlink payload checks and content-free failure. Verify missing/vacuumed files, directory modes, symlinks/FIFOs and literal malicious labels fail safely or read only the intended private fixture payload; confirm no cache/history/selection writes. Keep one small fixture-driven helper regression script for these lookup and data-preservation boundaries.",
+      "done": false,
+      "sourcePath": "/home/avo/Projects/private/dmenu/openspec/changes/add-text-preview/tasks.md",
+      "line": 35
+    },
+    {
+      "id": "16",
+      "description": "5.3 Document the exact `CM_LAUNCHER` integration, final `-l` precedence, checksum/collision limitation, trusted ancestor/same-UID assumptions and optional explicit installation. Include the helper in distribution packaging if shipped, without silently adding it to generic installation. Verify documented invocation against the installed launcher body in a private fixture using explicit Bash and fake xsel/PATH (bypassing the Guix wrapper), comparing both restored selections to original multiline bytes without invoking the daemon or real xsel.",
+      "done": false,
+      "sourcePath": "/home/avo/Projects/private/dmenu/openspec/changes/add-text-preview/tasks.md",
+      "line": 36
+    },
+    {
+      "id": "17",
+      "description": "6.1 Run the complete X11 baseline/new comparison and adversarial scenarios in `design.md` using disposable Xvfb/Xephyr plus watchdog and synthetic screenshots; retain the earlier group-2 evidence rather than deferring that checkpoint here. Verify normal Return, Shift-Return, Ctrl-Return, Escape, no matches and empty stdin in preview and non-preview modes; measure responsiveness and record actual outputs/status, not just a passing checklist.",
+      "done": false,
+      "sourcePath": "/home/avo/Projects/private/dmenu/openspec/changes/add-text-preview/tasks.md",
+      "line": 40
+    },
+    {
+      "id": "18",
+      "description": "6.2 Run clean warning-enabled builds plus isolated ASan/UBSan scenarios and Valgrind where available; inspect `/proc` fd/process-group/RSS stability through repeated interactions. Verify no new invalid access, unbounded preview growth, accumulated unreaped direct children while running, idle polling or preview allocations without `-P`. Verify cooperative groups terminate within the separate 2000 ms observation window after SIGKILL, without blocking menu exit or asserting instantaneous disappearance/containment of intentional escapees. Disclose tool/platform gaps and pre-existing defects.",
+      "done": false,
+      "sourcePath": "/home/avo/Projects/private/dmenu/openspec/changes/add-text-preview/tasks.md",
+      "line": 41
+    },
+    {
+      "id": "19",
+      "description": "6.3 Stage installation with disposable DESTDIR and `PREFIX=/usr`, inspect installed binaries/scripts and version-substituted manuals, and verify source distribution includes intended helper/documentation without cleaning user artifacts. Verify rollback instructions identify backup binary/manual paths and disabling `-P`, with no history migration, daemon restart or host installation during checks.",
+      "done": false,
+      "sourcePath": "/home/avo/Projects/private/dmenu/openspec/changes/add-text-preview/tasks.md",
+      "line": 42
+    },
+    {
+      "id": "20",
+      "description": "6.4 Perform final manual GUI verification under Xmonad with synthetic data on the intended monitor/font: inspect pane balance, highlight, Unicode wrapping, scroll/navigation, output and keyboard release. Record separate manual evidence; do not claim this gate from automated tests. Any real clipboard inspection or installation requires explicit permission; preserve the old user-local binary/manual before an approved deployment.",
+      "done": false,
+      "sourcePath": "/home/avo/Projects/private/dmenu/openspec/changes/add-text-preview/tasks.md",
+      "line": 43
+    },
+    {
+      "id": "21",
+      "description": "6.5 Update existing project documentation and AGENTS.md only where actual commands or boundaries changed; remove throwaway fixtures/scripts and retain only compact behavioral regression checks. Verify final flags/protocol/keys/helper packaging, all acceptance scenario outcomes, removal of the early synthetic injection, and `openspec validate add-text-preview --strict` before requesting implementation review.",
+      "done": false,
+      "sourcePath": "/home/avo/Projects/private/dmenu/openspec/changes/add-text-preview/tasks.md",
+      "line": 44
+    }
+  ],
+  "taskTrackingConfigured": true,
+  "state": "ready",
+  "instruction": "Read context files, work through pending tasks, mark complete as you go.\nPause if you hit blockers or need clarification.",
+  "context": "This is a small C99/X11 dmenu fork with POSIX shell launchers, not a service.\nIts public interface is CLI flags, keyboard interaction, stdin/stdout, and exit status.\nFuzzy matching is the default; -F retains token matching and -i affects case handling.\nConfiguration is compiled in; existing local config.h files are not refreshed from config.def.h.\n",
+  "operationGuidance": [
+    "Inspect live source before using patches/; stored patch files are not an application manifest.",
+    "Preserve local config.h customizations; make clean does not regenerate that file.",
+    "Exercise launchers only with benign commands and isolated cache/PATH; do not install into host paths for validation."
+  ],
+  "root": {
+    "path": "/home/avo/Projects/private/dmenu",
+    "source": "nearest"
+  }
+}

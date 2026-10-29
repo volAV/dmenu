@@ -1,0 +1,31 @@
+schema: spec-driven
+
+context: |
+  This is a small C99/X11 dmenu fork with POSIX shell launchers, not a service.
+  Its public interface is CLI flags, keyboard interaction, stdin/stdout, and exit status.
+  Fuzzy matching is the default; -F retains token matching and -i affects case handling.
+  Configuration is compiled in; existing local config.h files are not refreshed from config.def.h.
+
+rules:
+  proposal:
+    - Identify affected menu, file-filter, or launcher behavior and any CLI or pipeline compatibility change.
+  specs:
+    - Specify observable selection/output and exit behavior, including cancellation or empty input where relevant.
+    - For matching changes, distinguish fuzzy, -F, and case-insensitive behavior.
+  design:
+    - Account for X11 geometry, font measurement, and keyboard-grab lifetime when changing interaction or rendering.
+    - For launcher changes, describe shell execution and PATH/cache effects.
+  tasks:
+    - For C changes, include a build and focused runtime checks; distinguish headless checks from X11 interaction. For launcher-only changes, include shell syntax and focused launcher checks.
+    - For compile-time configuration changes, cover both distributed defaults and existing customized local headers.
+
+operations:
+  apply:
+    guidance:
+      - Inspect live source before using patches/; stored patch files are not an application manifest.
+      - Preserve local config.h customizations; make clean does not regenerate that file.
+      - Exercise launchers only with benign commands and isolated cache/PATH; do not install into host paths for validation.
+  archive:
+    guidance:
+      - Record the configuration built and the behavior actually exercised; do not treat an existing binary or version output as UI verification.
+      - Confirm affected CLI/manual/default-setting documentation matches the final behavior and disclose unavailable X11 validation.

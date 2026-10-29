@@ -24,20 +24,153 @@ Running dmenu
 See the man page for details.
 
 
+Asynchronous preview checkpoint (development only)
+-------------------------------------------------
+`-P /absolute/helper -l 12` runs a trusted executable directly and draws its
+text in the approved 40/60 split below the search input. The helper receives
+the unchanged selected label plus LF through stdin, then EOF. Its argv has
+only the executable path; stdout is preview data and stderr goes to /dev/null.
+No clipboard text is evaluated as a command or added to the environment.
+
+One request owns a helper process group. Selection changes cancel obsolete
+work and debounce for 40 ms. A 1000 ms monotonic deadline covers execution,
+stdin delivery, stdout collection and process completion. Output is capped
+at 65536 bytes; an observed extra byte fixes the result as Truncated even
+after producer termination. Exact-limit successful completion is not truncated.
+The other fixed states are Loading, No preview, Unavailable and Timed out.
+Successful output waits for EOF and exit 0; ordinary nonzero exit discards it.
+
+Pipe I/O, poll-based X11 servicing and reaping are nonblocking. SIGKILL is sent
+to the owned group before releasing its leader PID; process disappearance is
+eventual, not an exit-time wait. Intentionally escaped descendants are outside
+containment guarantees. This is not a sandbox for hostile helper executables.
+Without `-P`, dmenu still blocks in XNextEvent without preview allocations,
+children or periodic polling.
+
+The last body row is reserved for status; preceding rows display clipped
+newline-separated output. With one body row, Ready displays its first line
+and other states display status. Final UTF-8/control sanitization, wrapping,
+scrolling and clipmenu integration are not implemented. Do not deploy this
+checkpoint as a finished clipboard UI or replace a working installed dmenu.
+
+Build and test only disposable source copies, preserving configuration and
+existing binaries/objects:
+
+    work=$(mktemp -d /tmp/dmenu-preview-async.XXXXXX)
+    cp Makefile config.mk *.c *.h "$work/"
+    make -C "$work" CC='cc -Wextra'
+    cat > "$work/preview" <<'EOF'
+    #!/bin/sh
+    IFS= read -r label || exit 1
+    printf 'Synthetic preview\n\nSelected label:\n%s\n' "$label"
+    EOF
+    chmod 700 "$work/preview"
+
+Remove the four spaces of Markdown indentation when entering the heredoc.
+Use only a disposable Xvfb/Xephyr display, never the working desktop:
+
+    printf 'alpha\nbeta\ngamma\n' |
+        DISPLAY=:ISOLATED "$work/dmenu" -i -l 12 -p Preview -P "$work/preview"
+
+Replace `:ISOLATED` with the display allocated by that isolated server. Enter,
+Shift-Return, Ctrl-Return and Escape retain the existing output/exit contracts.
+No installation or PATH modification is needed.
+
+`python3 tests/preview-checkpoint.py --baseline /absolute/baseline/dmenu
+--binary /absolute/new/dmenu --output /tmp/preview-results --isolated-display`
+(one command, with DISPLAY set to the owned isolated server) requires an empty
+output directory. It confirms at least 200 actual helper starts, measures active
+and settled resources, samples intermediate stale-result frames, and exercises
+deadline/navigation/cancellation under bounded Expose traffic. Per-process stderr
+and cleanup records are retained in OUTPUT/diagnostics, including unexpected
+termination and forced cleanup. Sanitizer diagnostics fail the run; partial
+reports are retained on failure. See `--help` for focused sanitizer runs.
+Xvfb/Xephyr, xdotool, xwininfo and ImageMagick are verification tools, not
+application dependencies.
+
+The older highlight check assumes default colors; row positions come from
+actual geometry. Preview-content checks use same-run pixel variation rather
+than fixed glyph hashes. Use matching baseline/current configuration and fonts,
+not custom themes, for the screenshot comparisons.
+
+Approved earlier GUI screenshots and logs remain unchanged under
+`openspec/changes/add-text-preview/evidence/`. Their compile-time fixture and
+checkpoint notice have been removed from the application; synthetic content
+now comes exclusively from executable test helpers.
+
+Async-checkpoint source delta, screenshots and executable verification results
+are retained under `openspec/changes/add-text-preview/evidence/async/`.
+Post-review harness corrections and fresh verification evidence are retained
+under `openspec/changes/add-text-preview/evidence/async-review/`.
+Those directories retain historical sanitizer findings from before integration
+of reviewed fix `32fafa2ce7daf1a683e3039bbaf7a9007823e986`: fuzzy filtering
+read one pointer beyond the sorted match array. The bounds-first loop correction
+is now integrated; the fuzzy algorithm and token-mode behavior are unchanged.
+Fontconfig exit leaks remain unrelated and unfixed.
+Fresh integration commands, outcomes, diagnostics and preservation checks are
+under `openspec/changes/add-text-preview/evidence/fuzzymatch-integration/`.
+
+Byte-exact collection checks use `tests/preview-boundary.c`, a test-only
+translation unit including the real private lifecycle functions from dmenu.c.
+It checks retained bytes/length/terminator/canary, terminal precedence and
+stdout-EOF timeout without opening X11. Build it in a disposable source copy:
+
+    mkdir "$work/tests"
+    cp tests/preview-boundary.c "$work/tests/"
+    make -C "$work" -f Makefile -f - CC='cc -Wextra' preview-boundary <<'EOF'
+    preview-boundary: tests/preview-boundary.c dmenu.c config.h drw.o util.o
+    	$(CC) $(CFLAGS) -o $@ $< drw.o util.o $(LDFLAGS)
+    EOF
+    PREVIEW_TEST_HELPER="$work/preview-boundary" "$work/preview-boundary"
+
+Use separate fresh copies for normal, UBSan and ASan builds; sanitizer compiler
+flags must be present during compilation and linking. PREVIEW_TEST_HELPER must
+always name the normal, uninstrumented probe, even for a sanitized parent: the
+production protocol discards helper stderr. Parent diagnostics remain captured.
+The native probe can run with leak detection enabled.
+
+For focused ASan lifecycle checks in both fuzzy and token modes,
+`ASAN_OPTIONS=detect_leaks=0` isolates invalid accesses from the known Fontconfig
+exit leak; address checks remain enabled and this is not a leak-clean claim.
+Run separate baseline/current normal-exit checks with `detect_leaks=1` and
+retain their stderr. Forced SIGKILL cannot perform a final leak scan.
+`--helpers-only --token-mode` selects token-mode lifecycle coverage; omit
+`--token-mode` for fuzzy coverage. Use a corrected baseline for full sanitized
+GUI comparisons: the original pre-fix baseline still overreads during filtering.
+
+Termination observation uses an earlier conservative bound (key injection start,
+or helper startup before completion/timeout), never observer entry. Driver
+delivery time is included, so the two-second budget is stricter than a budget
+from the actual SIGKILL syscall. Late scans fail rather than establish absence
+retroactively. Stale-frame sampling records its maximum gap; shorter flashes
+remain outside the observation resolution. Fairness tests reject failed/slow
+injectors or X-server round trips as infrastructure errors.
+
+
 Fuzzy matching regression check
 -------------------------------
-Build and run the headless matching probe with AddressSanitizer and
-UndefinedBehaviorSanitizer:
+Use a disposable source copy with the intended configuration. From a fresh
+checkout, `make config.h` is required before compiling this standalone probe;
+it preserves an existing local header rather than overwriting it:
 
-    cc -std=c99 -g -O1 -fno-omit-frame-pointer -fsanitize=address,undefined \
-        -D_DEFAULT_SOURCE -D_XOPEN_SOURCE=700 -DVERSION='"5.4"' -DXINERAMA \
-        -I/usr/include/freetype2 tests/fuzzymatch.c drw.c util.c \
+    make config.h
+    cc -std=c99 -pedantic -Wall -g -O1 -fno-omit-frame-pointer \
+        -fsanitize=address,undefined -D_DEFAULT_SOURCE -D_XOPEN_SOURCE=700 \
+        -DVERSION='"5.4"' -DXINERAMA -I/usr/include/freetype2 \
+        tests/fuzzymatch.c drw.c util.c \
         -lX11 -lXinerama -lfontconfig -lXft -lm -o /tmp/fuzzymatch-check
-    ASAN_OPTIONS=detect_leaks=0 UBSAN_OPTIONS=halt_on_error=1 \
-        /tmp/fuzzymatch-check a a aab axa
+    ASAN_OPTIONS=detect_leaks=1 UBSAN_OPTIONS=halt_on_error=1 \
+        /tmp/fuzzymatch-check
+    ASAN_OPTIONS=detect_leaks=1 UBSAN_OPTIONS=halt_on_error=1 \
+        /tmp/fuzzymatch-check a a
 
-Leak detection is disabled only because initializing linked Fontconfig can
-report its known unrelated leak; address and undefined-behavior checks remain
-enabled. The probe exercises the real matching implementation without an X
-server. Pass `-i`, `-F`, a query, and item labels as arguments to check other
-cases.
+Keep sanitizer options during both compilation and linking; do not define
+NDEBUG, since it disables assertions. With no arguments, the probe asserts
+unequal fuzzy scores and the exact expected order for `ab`, `zzab`, `axb`.
+The second invocation is the original single-match overflow reproducer.
+Optional arguments are `-i`, `-F`, a query, and item labels; `--` ends options.
+The probe includes production matching code and checks both linked-list
+directions without opening X11 or initializing Fontconfig, so it can retain
+leak detection. It is not evidence of GUI correctness. For actual X11 sanitizer
+runs only, use the focused leak setting above and report leak-enabled exits
+separately; never suppress the original overflow or other invalid accesses.

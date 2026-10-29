@@ -1,0 +1,97 @@
+ASan findings are pre-existing baseline limitations; no suppressions were used.
+
+baseline-asan-fuzzy-sanitizer.log
+==413369==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x50200008bd80 at pc 0x60189e623908 bp 0x7ffd253957d0 sp 0x7ffd253957c0
+    #0 0x60189e623907 in fuzzymatch /tmp/dmenu-preview-async-4NWeMr/baseline-asan/dmenu.c:303
+    #1 0x60189e623659 in fuzzymatch /tmp/dmenu-preview-async-4NWeMr/baseline-asan/dmenu.c:293
+SUMMARY: AddressSanitizer: heap-buffer-overflow /tmp/dmenu-preview-async-4NWeMr/baseline-asan/dmenu.c:303 in fuzzymatch
+
+asan-fuzzy-sanitizer.log
+==413373==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x50200008bda0 at pc 0x6289e905cfaf bp 0x7ffdb452d780 sp 0x7ffdb452d770
+    #0 0x6289e905cfae in fuzzymatch /tmp/dmenu-preview-async-4NWeMr/asan/dmenu.c:641
+    #1 0x6289e905cd00 in fuzzymatch /tmp/dmenu-preview-async-4NWeMr/asan/dmenu.c:631
+SUMMARY: AddressSanitizer: heap-buffer-overflow /tmp/dmenu-preview-async-4NWeMr/asan/dmenu.c:641 in fuzzymatch
+
+baseline-asan-token-sanitizer.log
+==413573==ERROR: LeakSanitizer: detected memory leaks
+Direct leak of 6656 byte(s) in 26 object(s) allocated from:
+    #1 0x77d1d87147fc  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x227fc) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #2 0x77d1d8718ed8  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x26ed8) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #3 0x77d1d8727331  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x35331) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #10 0x77d1d872183d  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x2f83d) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #11 0x77d1d872222c  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x3022c) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #12 0x77d1d8722478  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x30478) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #13 0x77d1d8725436  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x33436) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #20 0x77d1d872183d  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x2f83d) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #21 0x77d1d872222c  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x3022c) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #22 0x77d1d87093b5  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x173b5) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #23 0x77d1d87041c0  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x121c0) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #24 0x77d1d87096bc in FcInit (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x176bc) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+Indirect leak of 1664 byte(s) in 52 object(s) allocated from:
+    #1 0x77d1d8718e6f  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x26e6f) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #2 0x77d1d8727331  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x35331) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #9 0x77d1d872183d  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x2f83d) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #10 0x77d1d872222c  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x3022c) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #11 0x77d1d8722478  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x30478) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #12 0x77d1d8725436  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x33436) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #19 0x77d1d872183d  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x2f83d) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #20 0x77d1d872222c  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x3022c) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #21 0x77d1d87093b5  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x173b5) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #22 0x77d1d87041c0  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x121c0) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #23 0x77d1d87096bc in FcInit (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x176bc) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+Indirect leak of 519 byte(s) in 50 object(s) allocated from:
+    #1 0x77d1d8713ff7 in FcValueSave (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x21ff7) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #2 0x77d1d8718e86  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x26e86) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #3 0x77d1d8727331  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x35331) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #10 0x77d1d872183d  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x2f83d) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #11 0x77d1d872222c  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x3022c) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #12 0x77d1d8722478  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x30478) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #13 0x77d1d8725436  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x33436) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #20 0x77d1d872183d  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x2f83d) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #21 0x77d1d872222c  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x3022c) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #22 0x77d1d87093b5  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x173b5) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #23 0x77d1d87041c0  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x121c0) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #24 0x77d1d87096bc in FcInit (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x176bc) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+SUMMARY: AddressSanitizer: 8839 byte(s) leaked in 128 allocation(s).
+
+asan-token-sanitizer.log
+==413599==ERROR: LeakSanitizer: detected memory leaks
+Direct leak of 6656 byte(s) in 26 object(s) allocated from:
+    #1 0x7851ec1d47fc  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x227fc) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #2 0x7851ec1d8ed8  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x26ed8) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #3 0x7851ec1e7331  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x35331) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #10 0x7851ec1e183d  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x2f83d) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #11 0x7851ec1e222c  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x3022c) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #12 0x7851ec1e2478  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x30478) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #13 0x7851ec1e5436  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x33436) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #20 0x7851ec1e183d  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x2f83d) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #21 0x7851ec1e222c  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x3022c) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #22 0x7851ec1c93b5  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x173b5) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #23 0x7851ec1c41c0  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x121c0) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #24 0x7851ec1c96bc in FcInit (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x176bc) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+Indirect leak of 1664 byte(s) in 52 object(s) allocated from:
+    #1 0x7851ec1d8e6f  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x26e6f) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #2 0x7851ec1e7331  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x35331) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #9 0x7851ec1e183d  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x2f83d) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #10 0x7851ec1e222c  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x3022c) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #11 0x7851ec1e2478  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x30478) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #12 0x7851ec1e5436  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x33436) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #19 0x7851ec1e183d  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x2f83d) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #20 0x7851ec1e222c  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x3022c) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #21 0x7851ec1c93b5  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x173b5) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #22 0x7851ec1c41c0  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x121c0) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #23 0x7851ec1c96bc in FcInit (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x176bc) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+Indirect leak of 519 byte(s) in 50 object(s) allocated from:
+    #1 0x7851ec1d3ff7 in FcValueSave (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x21ff7) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #2 0x7851ec1d8e86  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x26e86) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #3 0x7851ec1e7331  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x35331) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #10 0x7851ec1e183d  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x2f83d) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #11 0x7851ec1e222c  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x3022c) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #12 0x7851ec1e2478  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x30478) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #13 0x7851ec1e5436  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x33436) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #20 0x7851ec1e183d  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x2f83d) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #21 0x7851ec1e222c  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x3022c) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #22 0x7851ec1c93b5  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x173b5) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #23 0x7851ec1c41c0  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x121c0) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #24 0x7851ec1c96bc in FcInit (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x176bc) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+SUMMARY: AddressSanitizer: 8839 byte(s) leaked in 128 allocation(s).

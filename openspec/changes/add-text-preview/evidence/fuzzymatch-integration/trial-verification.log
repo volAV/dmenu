@@ -1,0 +1,13 @@
+make config.h
+cp config.def.h config.h
+exit=0
+cc -std=c99 -pedantic -Wall -g -O1 -fno-omit-frame-pointer -fsanitize=address,undefined -D_DEFAULT_SOURCE -D_XOPEN_SOURCE=700 '-DVERSION="5.4"' -DXINERAMA -I/usr/include/freetype2 tests/fuzzymatch.c drw.c util.c -lX11 -lXinerama -lfontconfig -lXft -lm -o /tmp/dmenu-fuzzy-integration-mclmbvjk/trial-build/probe
+exit=0
+/tmp/dmenu-fuzzy-integration-mclmbvjk/trial-build/probe
+2	-0.30685281944005471	ab
+1	0.38629436111989057	zzab
+0	0.69314718055994529	axb
+exit=0
+/tmp/dmenu-fuzzy-integration-mclmbvjk/trial-build/probe a a
+0	-0.30685281944005471	a
+exit=0

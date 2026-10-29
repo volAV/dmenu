@@ -1,0 +1,37 @@
+{
+  "corrected-baseline-asan-ubsan": {
+    "dmenu.c": "534c7359276f6720bcca0802a84ac97900d7847c1d11ff33beea8cba19c0983c",
+    "config.h": "a15a16ad70ec24f2e1e6e3affcc611c107f61d9528d33480c076e6f7c3f58c74",
+    "dmenu": "6612c25a1e9af17b4ae8353fd2f3a3822289c2aec00598f7b2aa62c8b080d0e7"
+  },
+  "corrected-baseline-ubsan": {
+    "dmenu.c": "534c7359276f6720bcca0802a84ac97900d7847c1d11ff33beea8cba19c0983c",
+    "config.h": "a15a16ad70ec24f2e1e6e3affcc611c107f61d9528d33480c076e6f7c3f58c74",
+    "dmenu": "0432a64ab50b84468f2e4b5b102e4504f6bcb63e6f2392df3e793d9520549369"
+  },
+  "current-asan-ubsan": {
+    "dmenu.c": "7045115e2f624571a2f1d982bdc9e6223d6987855caeadd8eae90694be9ec726",
+    "config.h": "a15a16ad70ec24f2e1e6e3affcc611c107f61d9528d33480c076e6f7c3f58c74",
+    "dmenu": "5a3150604b73c39145beae782eb7fd09df5df737135f4151a55794d3bea97a3d"
+  },
+  "current-normal": {
+    "dmenu.c": "7045115e2f624571a2f1d982bdc9e6223d6987855caeadd8eae90694be9ec726",
+    "config.h": "a15a16ad70ec24f2e1e6e3affcc611c107f61d9528d33480c076e6f7c3f58c74",
+    "dmenu": "fe2704d49b239701e56abdb71bf0db17882d855662e80023bb98b025f521e755"
+  },
+  "current-ubsan": {
+    "dmenu.c": "7045115e2f624571a2f1d982bdc9e6223d6987855caeadd8eae90694be9ec726",
+    "config.h": "a15a16ad70ec24f2e1e6e3affcc611c107f61d9528d33480c076e6f7c3f58c74",
+    "dmenu": "a8cc4f49e8339349ca89c08e65b2adc1a0a8816523032d3d040be63136e1a305"
+  },
+  "original-baseline-asan-ubsan": {
+    "dmenu.c": "cf7f68c2274cfe1def9f3955e97257c2ada36e6988cd04e595fa68e0650202c7",
+    "config.h": "a15a16ad70ec24f2e1e6e3affcc611c107f61d9528d33480c076e6f7c3f58c74",
+    "dmenu": "bb19a3797f88eb77d59b9e8b3bc61862a2cc0c74c8f2093a70b9f5c5d4ee5fad"
+  },
+  "original-baseline-normal": {
+    "dmenu.c": "cf7f68c2274cfe1def9f3955e97257c2ada36e6988cd04e595fa68e0650202c7",
+    "config.h": "a15a16ad70ec24f2e1e6e3affcc611c107f61d9528d33480c076e6f7c3f58c74",
+    "dmenu": "f651cedd22c377ffa45debe95be859cd42670db446bc09cb2f523a51808d296c"
+  }
+}

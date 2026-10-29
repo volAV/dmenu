@@ -1,0 +1,125 @@
+PASS preview-cli-validation: 8 invalid invocations rejected before display access
+PASS helper-status-empty: footer matches No preview; screenshot=/tmp/dmenu-preview-async-4NWeMr/asan-results/status-0-empty.png
+PASS helper-status-nonzero: footer matches Unavailable; screenshot=/tmp/dmenu-preview-async-4NWeMr/asan-results/status-1-nonzero.png
+PASS helper-status-no-read: footer matches Timed out; screenshot=/tmp/dmenu-preview-async-4NWeMr/asan-results/status-2-no-read.png
+PASS helper-status-partial-input: footer matches Unavailable; screenshot=/tmp/dmenu-preview-async-4NWeMr/asan-results/status-3-partial-input.png
+PASS helper-status-close-stdout: footer matches Timed out; screenshot=/tmp/dmenu-preview-async-4NWeMr/asan-results/status-4-close-stdout.png
+PASS helper-status-descendant-pipe: footer matches Timed out; screenshot=/tmp/dmenu-preview-async-4NWeMr/asan-results/status-5-descendant-pipe.png
+PASS helper-group-termination-descendant-pipe: no live group members after observation; zombies=[]
+PASS helper-status-descendant-exit: footer matches successful blank state; screenshot=/tmp/dmenu-preview-async-4NWeMr/asan-results/status-6-descendant-exit.png
+PASS helper-group-termination-descendant-exit: no live group members after observation; zombies=[]
+PASS helper-status-early-success: footer matches successful blank state; screenshot=/tmp/dmenu-preview-async-4NWeMr/asan-results/status-7-early-success.png
+PASS helper-status-unlimited: footer matches Truncated; screenshot=/tmp/dmenu-preview-async-4NWeMr/asan-results/status-8-unlimited.png
+PASS helper-output-65535-bytes-exit-0: terminal-state precedence verified; screenshot=/tmp/dmenu-preview-async-4NWeMr/asan-results/status-bytes-65535-exit-0.png
+PASS helper-output-65536-bytes-exit-0: terminal-state precedence verified; screenshot=/tmp/dmenu-preview-async-4NWeMr/asan-results/status-bytes-65536-exit-0.png
+PASS helper-output-65537-bytes-exit-0: terminal-state precedence verified; screenshot=/tmp/dmenu-preview-async-4NWeMr/asan-results/status-bytes-65537-exit-0.png
+PASS helper-output-65537-bytes-exit-7: terminal-state precedence verified; screenshot=/tmp/dmenu-preview-async-4NWeMr/asan-results/status-bytes-65537-exit-7.png
+PASS helper-output-65536-bytes-exit-7: terminal-state precedence verified; screenshot=/tmp/dmenu-preview-async-4NWeMr/asan-results/status-bytes-65536-exit-7.png
+PASS helper-single-row-ready: first line rendered; screenshot=/tmp/dmenu-preview-async-4NWeMr/asan-results/one-row-multiline.png
+PASS helper-single-row-status: No preview status rendered; screenshot=/tmp/dmenu-preview-async-4NWeMr/asan-results/one-row-empty.png
+PASS helper-missing-failure: footer=Unavailable; screenshot=/tmp/dmenu-preview-async-4NWeMr/asan-results/status-missing.png
+PASS helper-nonexec-failure: footer=Unavailable; screenshot=/tmp/dmenu-preview-async-4NWeMr/asan-results/status-nonexec.png
+PASS helper-no-shebang-failure: footer=Unavailable; screenshot=/tmp/dmenu-preview-async-4NWeMr/asan-results/status-no-shebang.png
+PASS helper-argv-env-privacy: argv is executable-only; exact label arrived on LF-terminated stdin then EOF; screenshot=/tmp/dmenu-preview-async-4NWeMr/asan-results/literal-label-preview.png
+FAIL: literal selection stdout/status changed: (b'', 1); diagnostics: 
+=================================================================
+==440861==ERROR: LeakSanitizer: detected memory leaks
+
+Direct leak of 6656 byte(s) in 26 object(s) allocated from:
+    #0 0x7fc6d40fd9c7 in malloc ../../../../src/libsanitizer/asan/asan_malloc_linux.cpp:69
+    #1 0x7fc6d47c07fc  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x227fc) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #2 0x7fc6d47c4ed8  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x26ed8) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #3 0x7fc6d47d3331  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x35331) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #4 0x7fc6d46f4518  (/lib/x86_64-linux-gnu/libexpat.so.1+0xe518) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)
+    #5 0x7fc6d46f57d2  (/lib/x86_64-linux-gnu/libexpat.so.1+0xf7d2) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)
+    #6 0x7fc6d46f5ef7  (/lib/x86_64-linux-gnu/libexpat.so.1+0xfef7) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)
+    #7 0x7fc6d46f8b40  (/lib/x86_64-linux-gnu/libexpat.so.1+0x12b40) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)
+    #8 0x7fc6d46ea46e  (/lib/x86_64-linux-gnu/libexpat.so.1+0x446e) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)
+    #9 0x7fc6d46ef963 in XML_ParseBuffer (/lib/x86_64-linux-gnu/libexpat.so.1+0x9963) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)
+    #10 0x7fc6d47cd83d  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x2f83d) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #11 0x7fc6d47ce22c  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x3022c) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #12 0x7fc6d47ce478  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x30478) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #13 0x7fc6d47d1436  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x33436) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #14 0x7fc6d46f4518  (/lib/x86_64-linux-gnu/libexpat.so.1+0xe518) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)
+    #15 0x7fc6d46f57d2  (/lib/x86_64-linux-gnu/libexpat.so.1+0xf7d2) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)
+    #16 0x7fc6d46f5ef7  (/lib/x86_64-linux-gnu/libexpat.so.1+0xfef7) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)
+    #17 0x7fc6d46f8b40  (/lib/x86_64-linux-gnu/libexpat.so.1+0x12b40) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)
+    #18 0x7fc6d46ea46e  (/lib/x86_64-linux-gnu/libexpat.so.1+0x446e) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)
+    #19 0x7fc6d46ef963 in XML_ParseBuffer (/lib/x86_64-linux-gnu/libexpat.so.1+0x9963) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)
+    #20 0x7fc6d47cd83d  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x2f83d) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #21 0x7fc6d47ce22c  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x3022c) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #22 0x7fc6d47b53b5  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x173b5) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #23 0x7fc6d47b01c0  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x121c0) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #24 0x7fc6d47b56bc in FcInit (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x176bc) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #25 0x7fc6d479469a in XftInit (/lib/x86_64-linux-gnu/libXft.so.2+0x1169a) (BuildId: 18daad8558a541281b33a9045b7758daa2dea473)
+    #26 0x7fc6d47946d1 in XftFontMatch (/lib/x86_64-linux-gnu/libXft.so.2+0x116d1) (BuildId: 18daad8558a541281b33a9045b7758daa2dea473)
+    #27 0x7fc6d4794a3d in XftFontOpenName (/lib/x86_64-linux-gnu/libXft.so.2+0x11a3d) (BuildId: 18daad8558a541281b33a9045b7758daa2dea473)
+    #28 0x5a0f747fde4a in xfont_create /tmp/dmenu-preview-async-4NWeMr/asan/drw.c:104
+    #29 0x5a0f747feb09 in drw_fontset_create /tmp/dmenu-preview-async-4NWeMr/asan/drw.c:152
+
+Indirect leak of 1664 byte(s) in 52 object(s) allocated from:
+    #0 0x7fc6d40fd340 in calloc ../../../../src/libsanitizer/asan/asan_malloc_linux.cpp:77
+    #1 0x7fc6d47c4e6f  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x26e6f) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #2 0x7fc6d47d3331  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x35331) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #3 0x7fc6d46f4518  (/lib/x86_64-linux-gnu/libexpat.so.1+0xe518) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)
+    #4 0x7fc6d46f57d2  (/lib/x86_64-linux-gnu/libexpat.so.1+0xf7d2) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)
+    #5 0x7fc6d46f5ef7  (/lib/x86_64-linux-gnu/libexpat.so.1+0xfef7) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)
+    #6 0x7fc6d46f8b40  (/lib/x86_64-linux-gnu/libexpat.so.1+0x12b40) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)
+    #7 0x7fc6d46ea46e  (/lib/x86_64-linux-gnu/libexpat.so.1+0x446e) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)
+    #8 0x7fc6d46ef963 in XML_ParseBuffer (/lib/x86_64-linux-gnu/libexpat.so.1+0x9963) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)
+    #9 0x7fc6d47cd83d  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x2f83d) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #10 0x7fc6d47ce22c  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x3022c) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #11 0x7fc6d47ce478  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x30478) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #12 0x7fc6d47d1436  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x33436) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #13 0x7fc6d46f4518  (/lib/x86_64-linux-gnu/libexpat.so.1+0xe518) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)
+    #14 0x7fc6d46f57d2  (/lib/x86_64-linux-gnu/libexpat.so.1+0xf7d2) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)
+    #15 0x7fc6d46f5ef7  (/lib/x86_64-linux-gnu/libexpat.so.1+0xfef7) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)
+    #16 0x7fc6d46f8b40  (/lib/x86_64-linux-gnu/libexpat.so.1+0x12b40) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)
+    #17 0x7fc6d46ea46e  (/lib/x86_64-linux-gnu/libexpat.so.1+0x446e) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)
+    #18 0x7fc6d46ef963 in XML_ParseBuffer (/lib/x86_64-linux-gnu/libexpat.so.1+0x9963) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)
+    #19 0x7fc6d47cd83d  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x2f83d) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #20 0x7fc6d47ce22c  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x3022c) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #21 0x7fc6d47b53b5  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x173b5) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #22 0x7fc6d47b01c0  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x121c0) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #23 0x7fc6d47b56bc in FcInit (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x176bc) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #24 0x7fc6d479469a in XftInit (/lib/x86_64-linux-gnu/libXft.so.2+0x1169a) (BuildId: 18daad8558a541281b33a9045b7758daa2dea473)
+    #25 0x7fc6d47946d1 in XftFontMatch (/lib/x86_64-linux-gnu/libXft.so.2+0x116d1) (BuildId: 18daad8558a541281b33a9045b7758daa2dea473)
+    #26 0x7fc6d4794a3d in XftFontOpenName (/lib/x86_64-linux-gnu/libXft.so.2+0x11a3d) (BuildId: 18daad8558a541281b33a9045b7758daa2dea473)
+    #27 0x5a0f747fde4a in xfont_create /tmp/dmenu-preview-async-4NWeMr/asan/drw.c:104
+    #28 0x5a0f747feb09 in drw_fontset_create /tmp/dmenu-preview-async-4NWeMr/asan/drw.c:152
+    #29 0x5a0f747f58bc in main /tmp/dmenu-preview-async-4NWeMr/asan/dmenu.c:1261
+
+Indirect leak of 519 byte(s) in 50 object(s) allocated from:
+    #0 0x7fc6d40f74e8 in strdup ../../../../src/libsanitizer/asan/asan_interceptors.cpp:578
+    #1 0x7fc6d47bfff7 in FcValueSave (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x21ff7) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #2 0x7fc6d47c4e86  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x26e86) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #3 0x7fc6d47d3331  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x35331) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #4 0x7fc6d46f4518  (/lib/x86_64-linux-gnu/libexpat.so.1+0xe518) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)
+    #5 0x7fc6d46f57d2  (/lib/x86_64-linux-gnu/libexpat.so.1+0xf7d2) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)
+    #6 0x7fc6d46f5ef7  (/lib/x86_64-linux-gnu/libexpat.so.1+0xfef7) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)
+    #7 0x7fc6d46f8b40  (/lib/x86_64-linux-gnu/libexpat.so.1+0x12b40) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)
+    #8 0x7fc6d46ea46e  (/lib/x86_64-linux-gnu/libexpat.so.1+0x446e) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)
+    #9 0x7fc6d46ef963 in XML_ParseBuffer (/lib/x86_64-linux-gnu/libexpat.so.1+0x9963) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)
+    #10 0x7fc6d47cd83d  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x2f83d) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #11 0x7fc6d47ce22c  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x3022c) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #12 0x7fc6d47ce478  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x30478) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #13 0x7fc6d47d1436  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x33436) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #14 0x7fc6d46f4518  (/lib/x86_64-linux-gnu/libexpat.so.1+0xe518) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)
+    #15 0x7fc6d46f57d2  (/lib/x86_64-linux-gnu/libexpat.so.1+0xf7d2) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)
+    #16 0x7fc6d46f5ef7  (/lib/x86_64-linux-gnu/libexpat.so.1+0xfef7) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)
+    #17 0x7fc6d46f8b40  (/lib/x86_64-linux-gnu/libexpat.so.1+0x12b40) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)
+    #18 0x7fc6d46ea46e  (/lib/x86_64-linux-gnu/libexpat.so.1+0x446e) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)
+    #19 0x7fc6d46ef963 in XML_ParseBuffer (/lib/x86_64-linux-gnu/libexpat.so.1+0x9963) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)
+    #20 0x7fc6d47cd83d  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x2f83d) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #21 0x7fc6d47ce22c  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x3022c) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #22 0x7fc6d47b53b5  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x173b5) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #23 0x7fc6d47b01c0  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x121c0) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #24 0x7fc6d47b56bc in FcInit (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x176bc) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)
+    #25 0x7fc6d479469a in XftInit (/lib/x86_64-linux-gnu/libXft.so.2+0x1169a) (BuildId: 18daad8558a541281b33a9045b7758daa2dea473)
+    #26 0x7fc6d47946d1 in XftFontMatch (/lib/x86_64-linux-gnu/libXft.so.2+0x116d1) (BuildId: 18daad8558a541281b33a9045b7758daa2dea473)
+    #27 0x7fc6d4794a3d in XftFontOpenName (/lib/x86_64-linux-gnu/libXft.so.2+0x11a3d) (BuildId: 18daad8558a541281b33a9045b7758daa2dea473)
+    #28 0x5a0f747fde4a in xfont_create /tmp/dmenu-preview-async-4NWeMr/asan/drw.c:104
+    #29 0x5a0f747feb09 in drw_fontset_create /tmp/dmenu-preview-async-4NWeMr/asan/drw.c:152
+
+SUMMARY: AddressSanitizer: 8839 byte(s) leaked in 128 allocation(s).
+

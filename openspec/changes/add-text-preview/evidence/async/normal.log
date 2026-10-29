@@ -1,0 +1,89 @@
+PASS preview-cli-validation: 8 invalid invocations rejected before display access
+PASS horizontal-empty-enter: baseline=(b'alpha\n', 0), binary=(b'alpha\n', 0), expected=(b'alpha\n', 0)
+PASS horizontal-empty-enter-appearance: baseline/new screenshots are pixel-identical
+PASS horizontal-down-enter: baseline=(b'beta\n', 0), binary=(b'beta\n', 0), expected=(b'beta\n', 0)
+PASS horizontal-escape: baseline=(b'', 1), binary=(b'', 1), expected=(b'', 1)
+PASS horizontal-fuzzy-filter: baseline=(b'alpha\n', 0), binary=(b'alpha\n', 0), expected=(b'alpha\n', 0)
+PASS vertical-navigation: baseline=(b'beta\n', 0), binary=(b'beta\n', 0), expected=(b'beta\n', 0)
+PASS vertical-navigation-appearance: baseline/new screenshots are pixel-identical
+PASS vertical-no-fuzzy-filter: baseline=(b'alpha\n', 0), binary=(b'alpha\n', 0), expected=(b'alpha\n', 0)
+PASS case-insensitive-filter: baseline=(b'alpha\n', 0), binary=(b'alpha\n', 0), expected=(b'alpha\n', 0)
+PASS fuzzy-subsequence: baseline=(b'alpha\n', 0), binary=(b'alpha\n', 0), expected=(b'alpha\n', 0)
+PASS token-rejects-subsequence: baseline=(b'apha\n', 0), binary=(b'apha\n', 0), expected=(b'apha\n', 0)
+PASS token-case-insensitive: baseline=(b'alpha\n', 0), binary=(b'alpha\n', 0), expected=(b'alpha\n', 0)
+PASS empty-list-escape: baseline=(b'', 1), binary=(b'', 1), expected=(b'', 1)
+PASS short-list-enter: baseline=(b'one\n', 0), binary=(b'one\n', 0), expected=(b'one\n', 0)
+PASS explicit-monitor: baseline=(b'Alpine\n', 0), binary=(b'Alpine\n', 0), expected=(b'Alpine\n', 0)
+PASS vertical-page-selection: baseline=(b'beta\n', 0), binary=(b'beta\n', 0), expected=(b'beta\n', 0)
+PASS vertical-home-selection: baseline=(b'alpha\n', 0), binary=(b'alpha\n', 0), expected=(b'alpha\n', 0)
+PASS long-label-enter: baseline=(b'long-label-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n', 0), binary=(b'long-label-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n', 0), expected=(b'long-label-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n', 0)
+PASS preview-enter: stdout/status=(b'green\n', 0)
+PASS preview-escape: stdout/status=(b'', 1)
+PASS preview-no-match-enter: stdout/status=(b'z\n', 0)
+PASS preview-fuzzy-subsequence: stdout/status=(b'green\n', 0)
+PASS preview-token-subsequence: stdout/status=(b'gn\n', 0)
+PASS preview-case-insensitive: stdout/status=(b'red\n', 0)
+PASS preview-tab: stdout/status=(b'green\n', 0)
+PASS preview-ctrl-return: stdout/status=(b'red\ngreen\n', 0)
+PASS preview-shift-return: stdout/status=(b'gn\n', 0)
+PASS preview-long-label: stdout/status=(b'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n', 0)
+PASS preview-selection-pixel: sample (1,28) changed srgb(0,85,119) -> srgb(34,34,34); screenshots: /tmp/dmenu-preview-async-4NWeMr/final-results/preview-geometry-before.png, /tmp/dmenu-preview-async-4NWeMr/final-results/preview-geometry-after.png
+PASS preview-divider-ratio: boundary x≈767/1920 (0.40); pixels srgb(34,34,34), srgb(187,187,187), srgb(34,34,34)
+PASS preview-visible-text: right-pane pixel deviations: short=0.023662, multiline=0.0418427
+PASS preview-selection-content: navigation changes rendered pixels strictly inside the right pane
+PASS preview-multiline-blank-line: blank row deviation=0.0, following paragraph=0.0516987
+PASS preview-unicode-content: third selection renders a distinct nonblank Unicode preview: /tmp/dmenu-preview-async-4NWeMr/final-results/preview-unicode.png
+PASS preview-return-content: returning to the previous selection restores its rendered preview
+PASS preview-geometry: geometry={'Absolute upper-left X': 0, 'Absolute upper-left Y': 0, 'Width': 1920, 'Height': 114}; screenshots: /tmp/dmenu-preview-async-4NWeMr/final-results/preview-geometry-before.png, /tmp/dmenu-preview-async-4NWeMr/final-results/preview-geometry-after.png
+PASS preview-zero-matches-clear: right-pane pixel deviation 0.0264457 -> 0.0
+PASS preview-empty-matches: geometry={'Absolute upper-left X': 0, 'Absolute upper-left Y': 0, 'Width': 1920, 'Height': 114}; screenshots: /tmp/dmenu-preview-async-4NWeMr/final-results/preview-empty-matches-before.png, /tmp/dmenu-preview-async-4NWeMr/final-results/preview-empty-matches-after.png
+PASS preview-empty-input: geometry={'Absolute upper-left X': 0, 'Absolute upper-left Y': 0, 'Width': 1920, 'Height': 114}; screenshots: /tmp/dmenu-preview-async-4NWeMr/final-results/preview-empty-input-before.png, /tmp/dmenu-preview-async-4NWeMr/final-results/preview-empty-input-after.png
+PASS preview-one-item: geometry={'Absolute upper-left X': 0, 'Absolute upper-left Y': 0, 'Width': 1920, 'Height': 114}; screenshots: /tmp/dmenu-preview-async-4NWeMr/final-results/preview-one-item-before.png, /tmp/dmenu-preview-async-4NWeMr/final-results/preview-one-item-after.png
+PASS preview-bottom: geometry={'Absolute upper-left X': 0, 'Absolute upper-left Y': 966, 'Width': 1920, 'Height': 114}; screenshots: /tmp/dmenu-preview-async-4NWeMr/final-results/preview-bottom-before.png, /tmp/dmenu-preview-async-4NWeMr/final-results/preview-bottom-after.png
+PASS preview-clamped-rows: geometry={'Absolute upper-left X': 0, 'Absolute upper-left Y': 0, 'Width': 1920, 'Height': 1064}; screenshots: /tmp/dmenu-preview-async-4NWeMr/final-results/preview-clamped-rows-before.png, /tmp/dmenu-preview-async-4NWeMr/final-results/preview-clamped-rows-after.png
+PASS preview-max-rows: geometry={'Absolute upper-left X': 0, 'Absolute upper-left Y': 0, 'Width': 1920, 'Height': 1064}; screenshots: /tmp/dmenu-preview-async-4NWeMr/final-results/preview-max-rows-before.png, /tmp/dmenu-preview-async-4NWeMr/final-results/preview-max-rows-after.png
+PASS preview-long-prompt: geometry={'Absolute upper-left X': 0, 'Absolute upper-left Y': 0, 'Width': 1920, 'Height': 114}; screenshots: /tmp/dmenu-preview-async-4NWeMr/final-results/preview-long-prompt-before.png, /tmp/dmenu-preview-async-4NWeMr/final-results/preview-long-prompt-after.png
+PASS preview-requested-rows: preview height=114, no-preview short-list height=76
+PASS embedded-parent-clamp: geometry={'Absolute upper-left X': 5, 'Absolute upper-left Y': 5, 'Width': 520, 'Height': 133}; screenshot: /tmp/dmenu-preview-async-4NWeMr/final-results/preview-embedded-parent.png
+PASS embedded-parent-bottom: geometry={'Absolute upper-left X': 5, 'Absolute upper-left Y': 22, 'Width': 520, 'Height': 133}
+PASS impossible-parent-dimensions: fixture exited 1: preview geometry is too small
+PASS helper-status-empty: footer matches No preview; screenshot=/tmp/dmenu-preview-async-4NWeMr/final-results/status-0-empty.png
+PASS helper-status-nonzero: footer matches Unavailable; screenshot=/tmp/dmenu-preview-async-4NWeMr/final-results/status-1-nonzero.png
+PASS helper-status-no-read: footer matches Timed out; screenshot=/tmp/dmenu-preview-async-4NWeMr/final-results/status-2-no-read.png
+PASS helper-status-partial-input: footer matches Unavailable; screenshot=/tmp/dmenu-preview-async-4NWeMr/final-results/status-3-partial-input.png
+PASS helper-status-close-stdout: footer matches Timed out; screenshot=/tmp/dmenu-preview-async-4NWeMr/final-results/status-4-close-stdout.png
+PASS helper-status-descendant-pipe: footer matches Timed out; screenshot=/tmp/dmenu-preview-async-4NWeMr/final-results/status-5-descendant-pipe.png
+PASS helper-group-termination-descendant-pipe: no live group members after observation; zombies=[]
+PASS helper-status-descendant-exit: footer matches successful blank state; screenshot=/tmp/dmenu-preview-async-4NWeMr/final-results/status-6-descendant-exit.png
+PASS helper-group-termination-descendant-exit: no live group members after observation; zombies=[]
+PASS helper-status-early-success: footer matches successful blank state; screenshot=/tmp/dmenu-preview-async-4NWeMr/final-results/status-7-early-success.png
+PASS helper-status-unlimited: footer matches Truncated; screenshot=/tmp/dmenu-preview-async-4NWeMr/final-results/status-8-unlimited.png
+PASS helper-output-65535-bytes-exit-0: terminal-state precedence verified; screenshot=/tmp/dmenu-preview-async-4NWeMr/final-results/status-bytes-65535-exit-0.png
+PASS helper-output-65536-bytes-exit-0: terminal-state precedence verified; screenshot=/tmp/dmenu-preview-async-4NWeMr/final-results/status-bytes-65536-exit-0.png
+PASS helper-output-65537-bytes-exit-0: terminal-state precedence verified; screenshot=/tmp/dmenu-preview-async-4NWeMr/final-results/status-bytes-65537-exit-0.png
+PASS helper-output-65537-bytes-exit-7: terminal-state precedence verified; screenshot=/tmp/dmenu-preview-async-4NWeMr/final-results/status-bytes-65537-exit-7.png
+PASS helper-output-65536-bytes-exit-7: terminal-state precedence verified; screenshot=/tmp/dmenu-preview-async-4NWeMr/final-results/status-bytes-65536-exit-7.png
+PASS helper-single-row-ready: first line rendered; screenshot=/tmp/dmenu-preview-async-4NWeMr/final-results/one-row-multiline.png
+PASS helper-single-row-status: No preview status rendered; screenshot=/tmp/dmenu-preview-async-4NWeMr/final-results/one-row-empty.png
+PASS helper-missing-failure: footer=Unavailable; screenshot=/tmp/dmenu-preview-async-4NWeMr/final-results/status-missing.png
+PASS helper-nonexec-failure: footer=Unavailable; screenshot=/tmp/dmenu-preview-async-4NWeMr/final-results/status-nonexec.png
+PASS helper-no-shebang-failure: footer=Unavailable; screenshot=/tmp/dmenu-preview-async-4NWeMr/final-results/status-no-shebang.png
+PASS helper-argv-env-privacy: argv is executable-only; exact label arrived on LF-terminated stdin then EOF; screenshot=/tmp/dmenu-preview-async-4NWeMr/final-results/literal-label-preview.png
+PASS helper-large-stdin-delivery: 100000 original label bytes plus LF and EOF received
+PASS helper-status-loading: footer matches rendered Loading; screenshot=/tmp/dmenu-preview-async-4NWeMr/final-results/status-loading.png
+PASS helper-delay-output: successful completion rendered; screenshot=/tmp/dmenu-preview-async-4NWeMr/final-results/success-delay-output.png
+PASS helper-delay-exit: successful completion rendered; screenshot=/tmp/dmenu-preview-async-4NWeMr/final-results/success-delay-exit.png
+PASS helper-rapid-selection-debounce: 1 request(s); latest label='blue'
+PASS helper-stale-selection-discard: latest selection blue rendered; screenshot=/tmp/dmenu-preview-async-4NWeMr/final-results/stale-selection.png
+PASS helper-blocked-stdin-zero-matches: 100000-byte blocked input cancelled, pane cleared, latency=0.086s
+PASS helper-running-key-Return: stdout/status preserved; elapsed=0.066s; groups terminated
+PASS helper-running-key-shift+Return: stdout/status preserved; elapsed=0.079s; groups terminated
+PASS helper-running-key-ctrl+Return: stdout/status preserved; elapsed=0.331s; groups terminated
+PASS helper-running-key-Escape: stdout/status preserved; elapsed=0.066s; groups terminated
+PASS helper-keyboard-grab-release: a new menu accepted input after output-key completion
+PASS helper-repeated-request-resources: samples=100 rss_pages=2428..2428 fd_count=4..5 direct_children<=1
+PASS helper-repeated-group-cleanup: 198 recorded requests, no live recorded groups after exit
+PASS no-preview-process-sampling: samples=12 rss_pages=2354..2354 fd_count=4..4 cpu_ticks=1..1 children=none observed
+PASS helper-window-destruction: menu exited with status 1 after parent destruction
+PASS helper-window-destruction-group: no live group members; zombies=[]
+PASS screenshots: /tmp/dmenu-preview-async-4NWeMr/final-results/preview-geometry-before.png, /tmp/dmenu-preview-async-4NWeMr/final-results/preview-geometry-after.png, /tmp/dmenu-preview-async-4NWeMr/final-results/preview-unicode.png, /tmp/dmenu-preview-async-4NWeMr/final-results/preview-empty-matches-before.png, /tmp/dmenu-preview-async-4NWeMr/final-results/preview-empty-matches-after.png, /tmp/dmenu-preview-async-4NWeMr/final-results/preview-empty-input-before.png, /tmp/dmenu-preview-async-4NWeMr/final-results/preview-empty-input-after.png, /tmp/dmenu-preview-async-4NWeMr/final-results/preview-one-item-before.png, /tmp/dmenu-preview-async-4NWeMr/final-results/preview-one-item-after.png, /tmp/dmenu-preview-async-4NWeMr/final-results/preview-bottom-before.png, /tmp/dmenu-preview-async-4NWeMr/final-results/preview-bottom-after.png, /tmp/dmenu-preview-async-4NWeMr/final-results/preview-clamped-rows-before.png, /tmp/dmenu-preview-async-4NWeMr/final-results/preview-clamped-rows-after.png, /tmp/dmenu-preview-async-4NWeMr/final-results/preview-max-rows-before.png, /tmp/dmenu-preview-async-4NWeMr/final-results/preview-max-rows-after.png, /tmp/dmenu-preview-async-4NWeMr/final-results/preview-long-prompt-before.png, /tmp/dmenu-preview-async-4NWeMr/final-results/preview-long-prompt-after.png, /tmp/dmenu-preview-async-4NWeMr/final-results/preview-embedded-parent.png, /tmp/dmenu-preview-async-4NWeMr/final-results/status-0-empty.png, /tmp/dmenu-preview-async-4NWeMr/final-results/status-1-nonzero.png, /tmp/dmenu-preview-async-4NWeMr/final-results/status-2-no-read.png, /tmp/dmenu-preview-async-4NWeMr/final-results/status-3-partial-input.png, /tmp/dmenu-preview-async-4NWeMr/final-results/status-4-close-stdout.png, /tmp/dmenu-preview-async-4NWeMr/final-results/status-5-descendant-pipe.png, /tmp/dmenu-preview-async-4NWeMr/final-results/status-6-descendant-exit.png, /tmp/dmenu-preview-async-4NWeMr/final-results/status-7-early-success.png, /tmp/dmenu-preview-async-4NWeMr/final-results/status-8-unlimited.png, /tmp/dmenu-preview-async-4NWeMr/final-results/status-bytes-65535-exit-0.png, /tmp/dmenu-preview-async-4NWeMr/final-results/status-bytes-65536-exit-0.png, /tmp/dmenu-preview-async-4NWeMr/final-results/status-bytes-65536-exit-7.png, /tmp/dmenu-preview-async-4NWeMr/final-results/status-bytes-65537-exit-0.png, /tmp/dmenu-preview-async-4NWeMr/final-results/status-bytes-65537-exit-7.png, /tmp/dmenu-preview-async-4NWeMr/final-results/status-loading.png, /tmp/dmenu-preview-async-4NWeMr/final-results/status-missing.png, /tmp/dmenu-preview-async-4NWeMr/final-results/status-no-shebang.png, /tmp/dmenu-preview-async-4NWeMr/final-results/status-nonexec.png, /tmp/dmenu-preview-async-4NWeMr/final-results/status-reference.png, /tmp/dmenu-preview-async-4NWeMr/final-results/status-word-Loading.png, /tmp/dmenu-preview-async-4NWeMr/final-results/status-word-No-preview.png, /tmp/dmenu-preview-async-4NWeMr/final-results/status-word-Timed-out.png, /tmp/dmenu-preview-async-4NWeMr/final-results/status-word-Truncated.png, /tmp/dmenu-preview-async-4NWeMr/final-results/status-word-Unavailable.png

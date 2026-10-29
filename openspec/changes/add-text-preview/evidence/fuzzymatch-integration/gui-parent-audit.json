@@ -1,0 +1,23 @@
+{
+  "successful_connection_probes": 5,
+  "all_seven_run_exit_codes": 0,
+  "all_indexed_stderr_files_present": true,
+  "indexed_stderr_counts": {
+    "normal-full": 109,
+    "normal-helpers-fuzzy": 55,
+    "normal-helpers-token": 55,
+    "asan-ubsan-full": 109,
+    "asan-ubsan-helpers-token": 55,
+    "ubsan-full": 109,
+    "ubsan-helpers-token": 55
+  },
+  "distinct_stress_starts_each": 201,
+  "group_observations_each": 210,
+  "accepted_run_sanitizer_findings": 0,
+  "tested_main_source_and_config_byte_identical": true,
+  "visually_inspected": [
+    "recovery-normal-full/literal-label-preview.png",
+    "recovery-asan-ubsan-full/fairness-timeout.png"
+  ],
+  "note": "gui-summary synthetic_helper_invocations counts only its top-level helper.jsonl, not all protocol logs or repeated stress starts."
+}

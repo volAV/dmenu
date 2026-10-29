@@ -1,0 +1,21 @@
+{
+  "name": "ubsan",
+  "command": [
+    "/usr/bin/python3",
+    "/home/avo/Projects/private/dmenu/tests/preview-checkpoint.py",
+    "--binary",
+    "/tmp/dmenu-review-corrections-fjivyc9f/ubsan/dmenu",
+    "--output",
+    "/tmp/dmenu-review-corrections-fjivyc9f/ubsan-results-113919640945388",
+    "--isolated-display",
+    "--helpers-only",
+    "--token-mode"
+  ],
+  "cwd": "/home/avo/Projects/private/dmenu",
+  "exit": 0,
+  "elapsed": 45.70038447600382,
+  "pass_reports": 42,
+  "sanitizer_environment": {
+    "UBSAN_OPTIONS": "halt_on_error=1:print_stacktrace=1"
+  }
+}

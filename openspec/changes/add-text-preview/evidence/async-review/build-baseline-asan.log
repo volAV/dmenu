@@ -1,0 +1,21 @@
+cc -Wextra -g -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer -c -std=c99 -pedantic -Wall -Os -I/usr/X11R6/include -I/usr/include/freetype2 -D_DEFAULT_SOURCE -D_BSD_SOURCE -D_XOPEN_SOURCE=700 -D_POSIX_C_SOURCE=200809L -DVERSION=\"5.4\" -DXINERAMA dmenu.c
+dmenu.c: In function ‘calcoffsets’:
+dmenu.c:93:41: warning: operand of ‘?:’ changes signedness from ‘int’ to ‘unsigned int’ due to unsignedness of other operand [-Wsign-compare]
+   93 |                 if ((i += (lines > 0) ? bh : textw_clamp(next->text, n)) > n)
+      |                                         ^~
+dmenu.c:96:41: warning: operand of ‘?:’ changes signedness from ‘int’ to ‘unsigned int’ due to unsignedness of other operand [-Wsign-compare]
+   96 |                 if ((i += (lines > 0) ? bh : textw_clamp(prev->left->text, n)) > n)
+      |                                         ^~
+dmenu.c: In function ‘drawmenu’:
+dmenu.c:167:39: warning: comparison of integer expressions of different signedness: ‘unsigned int’ and ‘int’ [-Wsign-compare]
+  167 |         if ((curpos += lrpad / 2 - 1) < w) {
+      |                                       ^
+dmenu.c: In function ‘setup’:
+dmenu.c:796:39: warning: comparison of integer expressions of different signedness: ‘int’ and ‘unsigned int’ [-Wsign-compare]
+  796 |                         for (i = 0; i < du && dws[i] != win; ++i)
+      |                                       ^
+cc -Wextra -g -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer -c -std=c99 -pedantic -Wall -Os -I/usr/X11R6/include -I/usr/include/freetype2 -D_DEFAULT_SOURCE -D_BSD_SOURCE -D_XOPEN_SOURCE=700 -D_POSIX_C_SOURCE=200809L -DVERSION=\"5.4\" -DXINERAMA drw.c
+cc -Wextra -g -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer -c -std=c99 -pedantic -Wall -Os -I/usr/X11R6/include -I/usr/include/freetype2 -D_DEFAULT_SOURCE -D_BSD_SOURCE -D_XOPEN_SOURCE=700 -D_POSIX_C_SOURCE=200809L -DVERSION=\"5.4\" -DXINERAMA util.c
+cc -Wextra -g -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer -o dmenu dmenu.o drw.o util.o -L/usr/X11R6/lib -lX11 -lXinerama -lfontconfig -lXft -lm
+cc -Wextra -g -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer -c -std=c99 -pedantic -Wall -Os -I/usr/X11R6/include -I/usr/include/freetype2 -D_DEFAULT_SOURCE -D_BSD_SOURCE -D_XOPEN_SOURCE=700 -D_POSIX_C_SOURCE=200809L -DVERSION=\"5.4\" -DXINERAMA stest.c
+cc -Wextra -g -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer -o stest stest.o -L/usr/X11R6/lib -lX11 -lXinerama -lfontconfig -lXft -lm

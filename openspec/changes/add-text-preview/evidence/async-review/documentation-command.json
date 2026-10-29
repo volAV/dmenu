@@ -1,0 +1,6 @@
+{
+  "cwd": "/home/avo/Projects/private/dmenu",
+  "work": "/tmp/dmenu-review-corrections-fjivyc9f/documentation-smoke",
+  "script": "mkdir \"$work/tests\"\ncp tests/preview-boundary.c \"$work/tests/\"\nmake -C \"$work\" -f Makefile -f - CC='cc -Wextra' preview-boundary <<'EOF'\npreview-boundary: tests/preview-boundary.c dmenu.c config.h drw.o util.o\n\t$(CC) $(CFLAGS) -o $@ $< drw.o util.o $(LDFLAGS)\nEOF\nPREVIEW_TEST_HELPER=\"$work/preview-boundary\" \"$work/preview-boundary\"",
+  "exit": 0
+}

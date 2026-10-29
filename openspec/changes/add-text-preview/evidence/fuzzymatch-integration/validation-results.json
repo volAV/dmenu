@@ -1,0 +1,54 @@
+[
+  {
+    "command": [
+      "openspec",
+      "validate",
+      "--all",
+      "--strict"
+    ],
+    "exit": 0
+  },
+  {
+    "command": [
+      "openspec",
+      "validate",
+      "add-text-preview",
+      "--strict"
+    ],
+    "exit": 0
+  },
+  {
+    "command": [
+      "git",
+      "diff",
+      "--check"
+    ],
+    "exit": 0
+  },
+  {
+    "command": [
+      "git",
+      "diff",
+      "--cached",
+      "--check"
+    ],
+    "exit": 2,
+    "finding": "Pre-existing README recipe example has spaces before a Makefile tab; present in saved staged-before.patch and preserved unchanged."
+  },
+  {
+    "command": [
+      "openspec",
+      "instructions",
+      "apply",
+      "--change",
+      "add-text-preview",
+      "--json"
+    ],
+    "exit": 0,
+    "progress": {
+      "total": 21,
+      "complete": 10,
+      "remaining": 11
+    }
+  }
+]

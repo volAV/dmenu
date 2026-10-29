@@ -1,0 +1,40 @@
+[
+  {
+    "variant": "baseline-asan",
+    "command": [
+      "/tmp/dmenu-review-corrections-fjivyc9f/baseline-asan/dmenu",
+      "-F",
+      "-l",
+      "5"
+    ],
+    "exit": 1,
+    "forced": false,
+    "stdout_hex": "",
+    "summaries": [
+      "==1435956==ERROR: LeakSanitizer: detected memory leaks",
+      "SUMMARY: AddressSanitizer: 8839 byte(s) leaked in 128 allocation(s)."
+    ],
+    "leak_detection": true,
+    "stderr_file": "baseline-asan-leaks.stderr"
+  },
+  {
+    "variant": "asan",
+    "command": [
+      "/tmp/dmenu-review-corrections-fjivyc9f/asan/dmenu",
+      "-F",
+      "-l",
+      "5",
+      "-P",
+      "/bin/true"
+    ],
+    "exit": 1,
+    "forced": false,
+    "stdout_hex": "",
+    "summaries": [
+      "==1435965==ERROR: LeakSanitizer: detected memory leaks",
+      "SUMMARY: AddressSanitizer: 8839 byte(s) leaked in 128 allocation(s)."
+    ],
+    "leak_detection": true,
+    "stderr_file": "asan-leaks.stderr"
+  }
+]

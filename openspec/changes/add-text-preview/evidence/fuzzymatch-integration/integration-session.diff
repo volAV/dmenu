@@ -1,0 +1,189 @@
+--- before/AGENTS.md
++++ after/AGENTS.md
+@@ -111,6 +111,12 @@
+ build/run commands are in README. Its producer must be the uninstrumented
+ normal probe even when the parent is sanitized, because helper stderr is discarded.
+ Record leak-disabled ASan coverage separately from leak-enabled exit diagnostics.
++The reviewed fuzzy bounds fix is integrated independently of preview features.
++`tests/fuzzymatch.c` includes production matching code and asserts unequal-score
++ordering by default; `a a` is the original single-match ASan reproducer.
++Its README build instructions require `make config.h` in a fresh disposable
++checkout. Native probes keep leak detection enabled; GUI memory-safety runs
++isolate the unrelated Fontconfig leak and retain separate leak-enabled results.
+ 
+ 
+ Keep CLI/help/manual and compile-time defaults consistent with behavior changes.
+--- before/README
++++ after/README
+@@ -102,11 +102,13 @@
+ are retained under `openspec/changes/add-text-preview/evidence/async/`.
+ Post-review harness corrections and fresh verification evidence are retained
+ under `openspec/changes/add-text-preview/evidence/async-review/`.
+-Known baseline sanitizer limitations are recorded in those directories: fuzzy filtering triggers
+-an existing ASan heap-buffer-overflow (also detected by full UBSan), and
+-baseline/current token-mode exits report Fontconfig leaks. Do not suppress those
+-findings or claim a sanitizer-clean full build. `--helpers-only --token-mode`
+-supports focused lifecycle checks without the unrelated fuzzy path.
++Those directories retain historical sanitizer findings from before integration
++of reviewed fix `32fafa2ce7daf1a683e3039bbaf7a9007823e986`: fuzzy filtering
++read one pointer beyond the sorted match array. The bounds-first loop correction
++is now integrated; the fuzzy algorithm and token-mode behavior are unchanged.
++Fontconfig exit leaks remain unrelated and unfixed.
++Fresh integration commands, outcomes, diagnostics and preservation checks are
++under `openspec/changes/add-text-preview/evidence/fuzzymatch-integration/`.
+ 
+ Byte-exact collection checks use `tests/preview-boundary.c`, a test-only
+ translation unit including the real private lifecycle functions from dmenu.c.
+@@ -127,12 +129,14 @@
+ production protocol discards helper stderr. Parent diagnostics remain captured.
+ The native probe can run with leak detection enabled.
+ 
+-For complete token-mode ASan lifecycle checks, `ASAN_OPTIONS=detect_leaks=0`
+-isolates invalid accesses from the known Fontconfig exit leak; this is not a
+-leak-clean claim. Run separate baseline/current normal-exit checks with
+-`detect_leaks=1` and retain their stderr. Forced SIGKILL cannot perform a final
+-leak scan. Do not suppress the unrelated fuzzy overflow or count the token-mode
+-run as fuzzy-path sanitizer coverage.
++For focused ASan lifecycle checks in both fuzzy and token modes,
++`ASAN_OPTIONS=detect_leaks=0` isolates invalid accesses from the known Fontconfig
++exit leak; address checks remain enabled and this is not a leak-clean claim.
++Run separate baseline/current normal-exit checks with `detect_leaks=1` and
++retain their stderr. Forced SIGKILL cannot perform a final leak scan.
++`--helpers-only --token-mode` selects token-mode lifecycle coverage; omit
++`--token-mode` for fuzzy coverage. Use a corrected baseline for full sanitized
++GUI comparisons: the original pre-fix baseline still overreads during filtering.
+ 
+ Termination observation uses an earlier conservative bound (key injection start,
+ or helper startup before completion/timeout), never observer entry. Driver
+@@ -141,3 +145,32 @@
+ retroactively. Stale-frame sampling records its maximum gap; shorter flashes
+ remain outside the observation resolution. Fairness tests reject failed/slow
+ injectors or X-server round trips as infrastructure errors.
++
++
++Fuzzy matching regression check
++-------------------------------
++Use a disposable source copy with the intended configuration. From a fresh
++checkout, `make config.h` is required before compiling this standalone probe;
++it preserves an existing local header rather than overwriting it:
++
++    make config.h
++    cc -std=c99 -pedantic -Wall -g -O1 -fno-omit-frame-pointer \
++        -fsanitize=address,undefined -D_DEFAULT_SOURCE -D_XOPEN_SOURCE=700 \
++        -DVERSION='"5.4"' -DXINERAMA -I/usr/include/freetype2 \
++        tests/fuzzymatch.c drw.c util.c \
++        -lX11 -lXinerama -lfontconfig -lXft -lm -o /tmp/fuzzymatch-check
++    ASAN_OPTIONS=detect_leaks=1 UBSAN_OPTIONS=halt_on_error=1 \
++        /tmp/fuzzymatch-check
++    ASAN_OPTIONS=detect_leaks=1 UBSAN_OPTIONS=halt_on_error=1 \
++        /tmp/fuzzymatch-check a a
++
++Keep sanitizer options during both compilation and linking; do not define
++NDEBUG, since it disables assertions. With no arguments, the probe asserts
++unequal fuzzy scores and the exact expected order for `ab`, `zzab`, `axb`.
++The second invocation is the original single-match overflow reproducer.
++Optional arguments are `-i`, `-F`, a query, and item labels; `--` ends options.
++The probe includes production matching code and checks both linked-list
++directions without opening X11 or initializing Fontconfig, so it can retain
++leak detection. It is not evidence of GUI correctness. For actual X11 sanitizer
++runs only, use the focused leak setting above and report leak-enabled exits
++separately; never suppress the original overflow or other invalid accesses.
+--- before/dmenu.c
++++ after/dmenu.c
+@@ -639,8 +639,8 @@
+ 		qsort(fuzzymatches, number_of_matches, sizeof(struct item*), compare_distance);
+ 		/* rebuild list of matches */
+ 		matches = matchend = NULL;
+-		for (i = 0, it = fuzzymatches[i]; i < number_of_matches && it &&
+-		        it->text; ++i, it = fuzzymatches[i])
++		for (i = 0; i < number_of_matches &&
++		        (it = fuzzymatches[i]) && it->text; ++i)
+ 			appenditem(it, &matches, &matchend);
+ 		free(fuzzymatches);
+ 	}
+--- before/openspec/changes/add-text-preview/tasks.md
++++ after/openspec/changes/add-text-preview/tasks.md
+@@ -106,3 +106,14 @@
+ - Rechecked saved result JSON, PASS counts in logs, and archive members rather than relying on the interrupted session's completion report. The normal/UBSan/ASan archives contain 201 distinct stress-helper PIDs, 200 active resource samples, 210 timely group observations and 41 stale-frame samples per run. All 109/55/55 indexed stderr files are present; none contains sanitizer diagnostics in the accepted scoped runs.
+ - Native result files and logs retain eight reports with exit 0 for each build. The separate full UBSan attempt remains a failure after five reports, and the leak-enabled baseline/current results remain failures with the recorded Fontconfig finding. These are not counted as passing full-suite coverage.
+ - No test suite, additional diagnostic scenario or application implementation was run during this resumption. No new task checkbox is marked complete: groups 1–3 remain 10/21, and all 11 tasks in groups 4–6 remain incomplete. This note records evidence inspection only, not a fresh runtime verification claim.
++
++## Reviewed fuzzy bounds-fix integration
++
++- The user separately authorized integration of reviewed commit `32fafa2ce7daf1a683e3039bbaf7a9007823e986`, without cherry-picking its conflicting README or changing the index. The sole production delta checks `i < number_of_matches` before reading `fuzzymatches[i]` during sorted-list reconstruction. Preview subprocess, event-loop, rendering and clipboard code are unchanged.
++- `tests/fuzzymatch.c` includes production matching code and adds deterministic unequal-score/expected-order assertions. README preserves preview documentation, adds the fresh-checkout `make config.h` prerequisite, and separates leak-enabled native probes from leak-disabled focused GUI ASan checks.
++- Pre-integration production source reproduces ASan heap-buffer-overflow at `dmenu.c:643` with query `a` and one item `a`; the corrected probe passes. The 148-row fuzzy/token/case/long-input matrix passed 444 normal/ASan+UBSan/UBSan comparisons; unchanged native preview-boundary checks passed eight reports per build with leak detection enabled.
++- Fresh isolated X11 full comparisons passed 90 reports each for normal, ASan+UBSan and UBSan. Normal fuzzy helper-only and normal/ASan+UBSan/UBSan token helper-only runs passed 42 reports each. Every lifecycle run recorded 201 real stress-helper starts, 200 active samples and 210 timely group observations. No sanitizer diagnostics occurred in these accepted scoped runs; no-preview screenshots/stdout/status matched their comparison baselines.
++- Full normal GUI comparison used original baseline `787050237a1b357e53efbec9ef5cc7870a51d041`; full sanitized comparisons used corrected pre-preview commit `32fafa2ce7daf1a683e3039bbaf7a9007823e986`, not the original overflowing baseline. GUI ASan used only `detect_leaks=0` to isolate invalid accesses; separate leak-enabled normal exits of original baseline/corrected baseline/current each retain the unrelated Fontconfig finding: 8839 bytes in 128 allocations. The known leak was not modified.
++- Initial GUI runs stalled on Xvfb infrastructure (repeated server resets writing to an undrained stderr pipe). They remain failed partial evidence; recovery used `-noreset`, file-backed stderr and five successful connection probes before the accepted runs. The production application and existing harness were not changed to make these runs pass.
++- Exact integration deltas, commands, compiler warnings, raw screenshots/process diagnostics, successful and superseded results, strict validation and preservation checks are retained under `evidence/fuzzymatch-integration/`; see its `report.md`. The same four pre-existing signedness warnings remain.
++- Progress remains 10/21. No task checkbox in groups 4–6 is changed or claimed complete. There is no sanitization/wrapping/scrolling/clipmenu work, installation, Xmonad interaction, real clipboard access, staging, new commit or history rewrite. Integration verification stops for a separate review of the working-tree delta.
+--- /dev/null
++++ after/tests/fuzzymatch.c
+@@ -0,0 +1,66 @@
++/* Exercise the real matching code without an X server. See README. */
++#include <assert.h>
++#define main dmenu_main
++#include "../dmenu.c"
++#undef main
++
++int
++main(int argc, char **argv)
++{
++	char *defaults[] = { "fuzzymatch-check", "ab", "axb", "zzab", "ab" };
++	struct item *it, *last = NULL;
++	size_t count = 0, nitems;
++	int i = 1, selftest = argc == 1;
++
++	if (selftest) {
++		argc = LENGTH(defaults);
++		argv = defaults;
++	}
++	for (; i < argc && argv[i][0] == '-'; ++i) {
++		if (!strcmp(argv[i], "-i")) {
++			fstrncmp = strncasecmp;
++			fstrstr = cistrstr;
++		} else if (!strcmp(argv[i], "-F")) {
++			fuzzy = 0;
++		} else if (!strcmp(argv[i], "--")) {
++			++i;
++			break;
++		} else {
++			return 2;
++		}
++	}
++	assert(i < argc && strlen(argv[i]) < sizeof text);
++	strcpy(text, argv[i++]);
++	nitems = argc - i;
++	items = ecalloc(nitems + 1, sizeof *items);
++	for (int j = 0; i < argc; ++i, ++j)
++		items[j].text = argv[i];
++	/* Vertical geometry keeps calcoffsets independent of X font metrics. */
++	lines = 10;
++	bh = 1;
++	match();
++	assert(curr == matches && sel == matches);
++	if (selftest) {
++		assert(matches == &items[2]);
++		assert(items[2].right == &items[1]);
++		assert(items[1].right == &items[0]);
++		assert(matchend == &items[0] && !matchend->right);
++		assert(fabs(items[2].distance - (log(2) - 1)) < 1e-12);
++		assert(fabs(items[1].distance - (log(4) - 1)) < 1e-12);
++		assert(fabs(items[0].distance - log(2)) < 1e-12);
++	}
++	for (it = matches; it; it = it->right) {
++		assert(++count <= nitems);
++		assert(it->left == last);
++		printf("%td\t%.17g\t%s\n", it - items, it->distance, it->text);
++		last = it;
++	}
++	assert(last == matchend);
++	for (it = matchend; it; it = it->left) {
++		assert(count > 0);
++		--count;
++	}
++	assert(count == 0);
++	free(items);
++	return 0;
++}

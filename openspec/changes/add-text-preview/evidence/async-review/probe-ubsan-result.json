@@ -1,0 +1,14 @@
+{
+  "name": "probe-ubsan",
+  "command": [
+    "/tmp/dmenu-review-corrections-fjivyc9f/ubsan/preview-boundary"
+  ],
+  "cwd": "/tmp/dmenu-review-corrections-fjivyc9f",
+  "exit": 0,
+  "elapsed": 1.0672368890081998,
+  "pass_reports": 8,
+  "sanitizer_environment": {
+    "ASAN_OPTIONS": "detect_leaks=1:halt_on_error=1",
+    "UBSAN_OPTIONS": "halt_on_error=1:print_stacktrace=1"
+  }
+}

@@ -1,0 +1,23 @@
+[
+  {
+    "directory": "asan-results-113264689813944",
+    "failures": [
+      "FAIL: destroyed-window helper never started"
+    ],
+    "coverage": "Superseded incomplete harness/infrastructure attempt; not counted as passing coverage"
+  },
+  {
+    "directory": "normal-results",
+    "failures": [
+      "FAIL: X11 event generator infrastructure failure: status=1, stderr=Traceback (most recent call last):\n  File \"<string>\", line 67, in <module>\nRuntimeError: unexpected BadWindow before the requested teardown probe\n"
+    ],
+    "coverage": "Superseded incomplete harness/infrastructure attempt; not counted as passing coverage"
+  },
+  {
+    "directory": "ubsan-results-113070678991046",
+    "failures": [
+      "FAIL: Expecting value: line 1 column 1 (char 0)"
+    ],
+    "coverage": "Superseded incomplete harness/infrastructure attempt; not counted as passing coverage"
+  }
+]

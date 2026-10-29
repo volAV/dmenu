@@ -1,0 +1,11 @@
+Command: openspec validate add-text-preview --strict
+Exit: 0
+
+Command: openspec validate --all --strict
+Exit: 0
+
+Command: openspec instructions apply --change add-text-preview --json
+Exit: 0
+Progress: {"total":21,"complete":10,"remaining":11}
+
+Only validation outcomes and mechanical task progress are retained; runtime workflow context is omitted.

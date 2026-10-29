@@ -1,0 +1,21 @@
+{
+  "name": "normal",
+  "command": [
+    "/usr/bin/python3",
+    "/home/avo/Projects/private/dmenu/tests/preview-checkpoint.py",
+    "--binary",
+    "/tmp/dmenu-review-corrections-fjivyc9f/normal/dmenu",
+    "--output",
+    "/tmp/dmenu-review-corrections-fjivyc9f/normal-results-113810148259752",
+    "--isolated-display",
+    "--baseline",
+    "/tmp/dmenu-review-corrections-fjivyc9f/baseline/dmenu"
+  ],
+  "cwd": "/home/avo/Projects/private/dmenu",
+  "exit": 0,
+  "elapsed": 60.070603704996756,
+  "pass_reports": 90,
+  "sanitizer_environment": {
+    "UBSAN_OPTIONS": "halt_on_error=1:print_stacktrace=1"
+  }
+}

@@ -1,12 +1,19 @@
 /* See LICENSE file for copyright and license details. */
 #include <ctype.h>
+#include <errno.h>
+#include <limits.h>
+#include <fcntl.h>
 #include <locale.h>
 #include <math.h>
+#include <poll.h>
+#include <signal.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
 #include <time.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 #include <X11/Xlib.h>
@@ -24,6 +31,7 @@
 #define INTERSECT(x,y,w,h,r)  (MAX(0, MIN((x)+(w),(r).x_org+(r).width)  - MAX((x),(r).x_org)) \
                              * MAX(0, MIN((y)+(h),(r).y_org+(r).height) - MAX((y),(r).y_org)))
 #define TEXTW(X)              (drw_fontset_getwidth(drw, (X)) + lrpad)
+#define PREVIEWMAX           65536
 
 /* enums */
 enum { SchemeNorm, SchemeSel, SchemeOut, SchemeLast }; /* color schemes */
@@ -36,9 +44,9 @@ struct item {
 };
 
 static char text[BUFSIZ] = "";
-static char *embed;
+static char *embed, *previewcmd;
 static int bh, mw, mh;
-static int inputw = 0, promptw;
+static int inputw = 0, promptw, itemw;
 static int lrpad; /* sum of left and right padding */
 static size_t cursor;
 static struct item *items = NULL;
@@ -58,6 +66,296 @@ static Clr *scheme[SchemeLast];
 
 static int (*fstrncmp)(const char *, const char *, size_t) = strncmp;
 static char *(*fstrstr)(const char *, const char *) = strstr;
+
+enum { PreviewIdle, PreviewLoading, PreviewReady, PreviewEmpty,
+       PreviewUnavailable, PreviewTimeout, PreviewTruncated };
+static struct {
+	struct item *item;
+	unsigned long generation, running;
+	pid_t pid, pgid;
+	int input, output, state;
+	int64_t due, deadline;
+	size_t sent, inputlen, used;
+	char *buf;
+} preview = { .input = -1, .output = -1 };
+
+static void drawmenu(void);
+
+static int64_t
+previewtime(void)
+{
+	struct timespec ts;
+
+	if (clock_gettime(CLOCK_MONOTONIC, &ts) < 0)
+		die("clock_gettime:");
+	return (int64_t)ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
+}
+
+static void
+previewclose(int *fd)
+{
+	if (*fd >= 0)
+		close(*fd);
+	*fd = -1;
+}
+
+static void
+previewreap(void)
+{
+	pid_t pid;
+
+	if (!preview.pid)
+		return;
+	pid = waitpid(preview.pid, NULL, WNOHANG);
+	if (pid == preview.pid || (pid < 0 && errno == ECHILD))
+		preview.pid = 0;
+}
+
+static void
+previewstop(void)
+{
+	previewclose(&preview.input);
+	previewclose(&preview.output);
+	/* Signal before reaping: the unreaped leader pins our process-group ID. */
+	if (preview.pgid)
+		kill(-preview.pgid, SIGKILL);
+	else if (preview.pid)
+		kill(preview.pid, SIGKILL);
+	preview.pgid = 0;
+	preview.deadline = 0;
+	previewreap();
+}
+
+static void
+previewfail(int state)
+{
+	preview.state = state;
+	preview.used = 0;
+	preview.buf[0] = '\0';
+	previewstop();
+}
+
+static void
+previewselect(void)
+{
+	if (preview.item == sel)
+		return;
+	previewstop();
+	preview.item = sel;
+	preview.generation++;
+	preview.used = 0;
+	preview.buf[0] = '\0';
+	preview.state = sel ? PreviewLoading : PreviewIdle;
+	preview.due = sel ? previewtime() + 40 : 0;
+}
+
+static int
+previewfd(int fd)
+{
+	int copy;
+
+	if (fd < 0)
+		return -1;
+	if (fd < 3) {
+		copy = fcntl(fd, F_DUPFD_CLOEXEC, 3);
+		close(fd);
+		return copy;
+	}
+	if (fcntl(fd, F_SETFD, FD_CLOEXEC) < 0) {
+		close(fd);
+		return -1;
+	}
+	return fd;
+}
+
+static void
+previewstart(void)
+{
+	int in[2] = { -1, -1 }, out[2] = { -1, -1 }, nullfd = -1;
+	char *const argv[] = { previewcmd, NULL };
+	pid_t pid;
+
+	preview.due = 0;
+	preview.deadline = previewtime() + 1000;
+	if (pipe(in) < 0 || pipe(out) < 0)
+		goto fail;
+	in[0] = previewfd(in[0]);
+	in[1] = previewfd(in[1]);
+	out[0] = previewfd(out[0]);
+	out[1] = previewfd(out[1]);
+	nullfd = previewfd(open("/dev/null", O_RDWR | O_CLOEXEC));
+	if (in[0] < 0 || in[1] < 0 || out[0] < 0 || out[1] < 0 || nullfd < 0 ||
+	    fcntl(in[1], F_SETFL, O_NONBLOCK) < 0 ||
+	    fcntl(out[0], F_SETFL, O_NONBLOCK) < 0)
+		goto fail;
+	if ((pid = fork()) < 0)
+		goto fail;
+	if (!pid) {
+		if (setpgid(0, 0) < 0 || dup2(in[0], STDIN_FILENO) < 0 ||
+		    dup2(out[1], STDOUT_FILENO) < 0 || dup2(nullfd, STDERR_FILENO) < 0)
+			_exit(127);
+		closefrom(3);
+		signal(SIGPIPE, SIG_DFL);
+		signal(SIGCHLD, SIG_DFL);
+		execv(previewcmd, argv);
+		_exit(127);
+	}
+	preview.pid = pid;
+	if (setpgid(pid, pid) == 0 || errno == EACCES)
+		preview.pgid = pid;
+	else {
+		previewfail(PreviewUnavailable);
+		goto fail;
+	}
+	preview.input = in[1];
+	preview.output = out[0];
+	preview.sent = 0;
+	preview.inputlen = strlen(preview.item->text);
+	preview.running = preview.generation;
+	previewclose(&in[0]);
+	previewclose(&out[1]);
+	previewclose(&nullfd);
+	return;
+
+fail:
+	previewclose(&in[0]);
+	previewclose(&in[1]);
+	previewclose(&out[0]);
+	previewclose(&out[1]);
+	previewclose(&nullfd);
+	previewfail(PreviewUnavailable);
+}
+
+static void
+previewwrite(void)
+{
+	const char *data;
+	size_t n;
+	ssize_t written;
+
+	n = preview.inputlen - preview.sent;
+	if (preview.sent == preview.inputlen) {
+		data = "\n";
+		n = 1;
+	} else {
+		data = preview.item->text + preview.sent;
+		n = MIN(n, 4096);
+	}
+	written = write(preview.input, data, n);
+	if (written > 0) {
+		preview.sent += written;
+		if (preview.sent > preview.inputlen)
+			previewclose(&preview.input);
+	} else if (written < 0 && errno == EPIPE) {
+		/* A helper may finish without consuming its complete input. */
+		previewclose(&preview.input);
+	} else if (!written || (errno != EINTR && errno != EAGAIN)) {
+		previewfail(PreviewUnavailable);
+	}
+}
+
+static void
+previewread(void)
+{
+	char extra;
+	ssize_t n;
+
+	if (preview.used == PREVIEWMAX)
+		n = read(preview.output, &extra, 1);
+	else
+		n = read(preview.output, preview.buf + preview.used,
+		         MIN(PREVIEWMAX - preview.used, 4096));
+	if (n > 0) {
+		if (preview.used == PREVIEWMAX) {
+			preview.state = PreviewTruncated;
+			previewstop();
+		} else {
+			preview.used += n;
+			preview.buf[preview.used] = '\0';
+		}
+	} else if (!n) {
+		previewclose(&preview.output);
+	} else if (errno != EINTR && errno != EAGAIN) {
+		previewfail(PreviewUnavailable);
+	}
+}
+
+static void
+previewstep(void)
+{
+	siginfo_t info = {0};
+
+	if (preview.pid && !preview.deadline)
+		previewreap();
+	if (!preview.pid && preview.due && previewtime() >= preview.due)
+		previewstart();
+	if (!preview.deadline)
+		return;
+	if (previewtime() >= preview.deadline) {
+		previewfail(PreviewTimeout);
+		return;
+	}
+	/* Observe exit without releasing the PID until group teardown is sent. */
+	if (waitid(P_PID, preview.pid, &info, WEXITED | WNOHANG | WNOWAIT) < 0) {
+		if (errno != EINTR)
+			previewfail(PreviewUnavailable);
+		return;
+	}
+	if (info.si_pid && preview.input < 0 && preview.output < 0) {
+		if (preview.running != preview.generation) {
+			previewstop();
+		} else if (info.si_code != CLD_EXITED || info.si_status != 0) {
+			previewfail(PreviewUnavailable);
+		} else {
+			preview.state = preview.used ? PreviewReady : PreviewEmpty;
+			previewstop();
+		}
+	}
+}
+
+static void
+previewwait(void)
+{
+	struct pollfd fds[3];
+	int state, timeout = -1, result;
+	int64_t now;
+
+	state = preview.state;
+	previewstep();
+	if (state != preview.state)
+		drawmenu();
+	now = previewtime();
+	if (preview.pid)
+		timeout = 20;
+	if (preview.deadline)
+		timeout = MIN(timeout, MAX(0, preview.deadline - now));
+	else if (!preview.pid && preview.due)
+		timeout = MAX(0, preview.due - now);
+	if (XPending(dpy))
+		timeout = 0;
+	fds[0] = (struct pollfd){ ConnectionNumber(dpy), POLLIN, 0 };
+	fds[1] = (struct pollfd){ preview.input, POLLOUT, 0 };
+	fds[2] = (struct pollfd){ preview.output, POLLIN, 0 };
+	XFlush(dpy);
+	result = poll(fds, LENGTH(fds), timeout);
+	if (result < 0) {
+		if (errno != EINTR) {
+			previewfail(PreviewUnavailable);
+			drawmenu();
+		}
+		return;
+	}
+	state = preview.state;
+	if ((fds[1].revents | fds[2].revents) & POLLNVAL)
+		previewfail(PreviewUnavailable);
+	if (preview.input >= 0 && (fds[1].revents & (POLLOUT | POLLHUP | POLLERR)))
+		previewwrite();
+	if (preview.output >= 0 && (fds[2].revents & (POLLIN | POLLHUP | POLLERR)))
+		previewread();
+	previewstep();
+	if (state != preview.state)
+		drawmenu();
+}
 
 static unsigned int
 textw_clamp(const char *str, unsigned int n)
@@ -103,6 +401,11 @@ cleanup(void)
 	size_t i;
 
 	XUngrabKeyboard(dpy, CurrentTime);
+	if (previewcmd) {
+		XFlush(dpy);
+		previewstop();
+		free(preview.buf);
+	}
 	for (i = 0; i < SchemeLast; i++)
 		drw_scm_free(drw, scheme[i], 2);
 	for (i = 0; items && items[i].text; ++i)
@@ -145,11 +448,45 @@ drawitem(struct item *item, int x, int y, int w)
 }
 
 static void
+drawpreview(void)
+{
+	static const char *states[] = {
+		"", "Loading", "", "No preview", "Unavailable", "Timed out", "Truncated"
+	};
+	int x = itemw + 1;
+	unsigned int row, count;
+	size_t offset = 0, length;
+	char *end, saved;
+
+	drw_setscheme(drw, scheme[SchemeNorm]);
+	drw_rect(drw, itemw, bh, 1, mh - bh, 1, 0);
+	if (!sel || preview.item != sel)
+		return;
+	count = lines > 1 ? lines - 1 : (preview.state == PreviewReady);
+	if (preview.state == PreviewReady || preview.state == PreviewTruncated)
+		for (row = 0; row < count && offset < preview.used; row++) {
+			end = memchr(preview.buf + offset, '\n', preview.used - offset);
+			length = end ? (size_t)(end - preview.buf) : preview.used;
+			saved = preview.buf[length];
+			preview.buf[length] = '\0';
+			drw_text(drw, x, (row + 1) * bh, mw - x, bh,
+			         lrpad / 2, preview.buf + offset, 0);
+			preview.buf[length] = saved;
+			offset = length + 1;
+		}
+	if (preview.state != PreviewReady)
+		drw_text(drw, x, lines * bh, mw - x, bh, lrpad / 2,
+		         states[preview.state], 0);
+}
+
+static void
 drawmenu(void)
 {
 	unsigned int curpos;
 	struct item *item;
 	int x = 0, y = 0, w;
+	if (previewcmd)
+		previewselect();
 
 	drw_setscheme(drw, scheme[SchemeNorm]);
 	drw_rect(drw, 0, 0, mw, mh, 1, 1);
@@ -172,7 +509,8 @@ drawmenu(void)
 	if (lines > 0) {
 		/* draw vertical list */
 		for (item = curr; item != next; item = item->right)
-			drawitem(item, x, y += bh, mw - x);
+			drawitem(item, previewcmd ? 0 : x, y += bh,
+			         previewcmd ? itemw : mw - x);
 	} else if (matches && curr) {
 		/* draw horizontal list */
 		x += inputw;
@@ -190,6 +528,8 @@ drawmenu(void)
 			drw_text(drw, mw - w, 0, w, bh, lrpad / 2, ">", 0);
 		}
 	}
+	if (previewcmd)
+		drawpreview();
 	drw_map(drw, win, 0, 0, mw, mh);
 }
 
@@ -655,15 +995,26 @@ readstdin(void)
 	free(line);
 	if (items)
 		items[i].text = NULL;
-	lines = MIN(lines, i);
+	if (!previewcmd)
+		lines = MIN(lines, i);
 }
 
 static void
 run(void)
 {
 	XEvent ev;
+	unsigned int batch = 0;
 
-	while (!XNextEvent(dpy, &ev)) {
+	for (;;) {
+		if (previewcmd && (batch == 64 || !XPending(dpy))) {
+			previewwait();
+			batch = 0;
+			continue;
+		}
+		if (XNextEvent(dpy, &ev))
+			break;
+		if (previewcmd)
+			batch++;
 		if (XFilterEvent(&ev, win))
 			continue;
 		switch(ev.type) {
@@ -699,7 +1050,7 @@ run(void)
 static void
 setup(void)
 {
-	int x, y, i, j;
+	int x, y, i, j, height = 0, minw;
 	unsigned int du;
 	XSetWindowAttributes swa;
 	XIM xim;
@@ -721,7 +1072,7 @@ setup(void)
 	/* calculate menu geometry */
 	bh = drw->fonts->h + 2;
 	lines = MAX(lines, 0);
-	mh = (lines + 1) * bh;
+	mh = previewcmd ? 0 : (lines + 1) * bh;
 #ifdef XINERAMA
 	i = 0;
 	if (parentwin == root && (info = XineramaQueryScreens(dpy, &n))) {
@@ -754,6 +1105,7 @@ setup(void)
 			i = 0;
 
 		x = info[i].x_org;
+		height = info[i].height;
 		y = info[i].y_org + (topbar ? 0 : info[i].height - mh);
 		mw = info[i].width;
 		XFree(info);
@@ -766,8 +1118,20 @@ setup(void)
 		x = 0;
 		y = topbar ? 0 : wa.height - mh;
 		mw = wa.width;
+		height = wa.height;
 	}
 	promptw = (prompt && *prompt) ? TEXTW(prompt) - lrpad / 4 : 0;
+	if (previewcmd) {
+		minw = TEXTW("M");
+		itemw = (mw - 1) * 2 / 5;
+		if (height / bh < 2 || itemw < minw || mw - itemw - 1 < minw)
+			die("preview geometry is too small");
+		lines = MIN(lines, (unsigned int)(height / bh - 1));
+		mh = (lines + 1) * bh;
+		if (!topbar)
+			y -= mh;
+		promptw = MIN(promptw, mw - minw);
+	}
 	inputw = mw / 3; /* input width: ~33% of monitor width */
 	match();
 
@@ -775,6 +1139,8 @@ setup(void)
 	swa.override_redirect = True;
 	swa.background_pixel = scheme[SchemeNorm][ColBg].pixel;
 	swa.event_mask = ExposureMask | KeyPressMask | VisibilityChangeMask;
+	if (previewcmd)
+		swa.event_mask |= StructureNotifyMask;
 	win = XCreateWindow(dpy, root, x, y, mw, mh, 0,
 	                    CopyFromParent, CopyFromParent, CopyFromParent,
 	                    CWOverrideRedirect | CWBackPixel | CWEventMask, &swa);
@@ -806,8 +1172,9 @@ setup(void)
 static void
 usage(void)
 {
-	die("usage: dmenu [-bFfiv] [-l lines] [-p prompt] [-fn font] [-m monitor]\n"
-	    "             [-nb color] [-nf color] [-sb color] [-sf color] [-w windowid]");
+	die("usage: dmenu [-bFfiv] [-l lines] [-p prompt] [-P /helper] [-fn font] [-m monitor]\n"
+	    "             [-nb color] [-nf color] [-sb color] [-sf color] [-w windowid]\n"
+	    "       -P requires an absolute executable path and a positive -l");
 }
 
 int
@@ -815,6 +1182,8 @@ main(int argc, char *argv[])
 {
 	XWindowAttributes wa;
 	int i, fast = 0;
+	char *linearg = NULL, *end;
+	unsigned long n;
 
 	for (i = 1; i < argc; i++)
 		/* these options take no arguments */
@@ -834,11 +1203,13 @@ main(int argc, char *argv[])
 			usage();
 		/* these options take one argument */
 		else if (!strcmp(argv[i], "-l"))   /* number of lines in vertical list */
-			lines = atoi(argv[++i]);
+			linearg = argv[++i];
 		else if (!strcmp(argv[i], "-m"))
 			mon = atoi(argv[++i]);
 		else if (!strcmp(argv[i], "-p"))   /* adds prompt to left of input field */
 			prompt = argv[++i];
+		else if (!strcmp(argv[i], "-P"))   /* opt-in preview pane */
+			previewcmd = argv[++i];
 		else if (!strcmp(argv[i], "-fn"))  /* font or font set */
 			fonts[0] = argv[++i];
 		else if (!strcmp(argv[i], "-nb"))  /* normal background color */
@@ -858,6 +1229,23 @@ main(int argc, char *argv[])
 		else
 			usage();
 
+	if (previewcmd) {
+		if (previewcmd[0] != '/' || !linearg || !isdigit((unsigned char)linearg[0]))
+			usage();
+		errno = 0;
+		n = strtoul(linearg, &end, 10);
+		if (errno || end == linearg || *end || !n || n > UINT_MAX)
+			usage();
+		lines = n;
+	} else if (linearg) {
+		lines = atoi(linearg);
+	}
+
+	if (previewcmd) {
+		preview.buf = ecalloc(PREVIEWMAX + 1, 1);
+		signal(SIGPIPE, SIG_IGN);
+		signal(SIGCHLD, SIG_DFL);
+	}
 	if (!setlocale(LC_CTYPE, "") || !XSupportsLocale())
 		fputs("warning: no locale support\n", stderr);
 	if (!(dpy = XOpenDisplay(NULL)))
@@ -875,7 +1263,7 @@ main(int argc, char *argv[])
 	lrpad = drw->fonts->h;
 
 #ifdef __OpenBSD__
-	if (pledge("stdio rpath", NULL) == -1)
+	if (pledge(previewcmd ? "stdio rpath proc exec" : "stdio rpath", NULL) == -1)
 		die("pledge");
 #endif
 

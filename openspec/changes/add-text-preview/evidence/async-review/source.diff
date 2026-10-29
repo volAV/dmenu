@@ -1,0 +1,1370 @@
+--- a/tests/preview-checkpoint.py
++++ b/tests/preview-checkpoint.py
+@@ -33,7 +33,7 @@
+ stdin_line_ends_lf = line.endswith(b"\n")
+ stdin_eof = sys.stdin.buffer.read(1) == b"" if mode not in ("no-read", "partial-input", "early-success") else False
+ env_digest = hashlib.sha256(json.dumps(sorted(os.environ.items()), separators=(",", ":")).encode()).hexdigest()
+-record = {{"argv": sys.argv, "label": label, "stdin_line_ends_lf": stdin_line_ends_lf, "stdin_eof": stdin_eof, "environment": sorted(os.environ), "environment_digest": env_digest, "label_in_environment": any(label and label in value for value in os.environ.values()), "extra_fds": extra_fds(), "stderr_target": os.readlink("/proc/self/fd/2"), "pid": os.getpid(), "pgid": os.getpgrp()}}
++record = {{"argv": sys.argv, "label": label, "stdin_line_ends_lf": stdin_line_ends_lf, "stdin_eof": stdin_eof, "environment": sorted(os.environ), "environment_digest": env_digest, "label_in_environment": any(label and label in value for value in os.environ.values()), "extra_fds": extra_fds(), "stderr_target": os.readlink("/proc/self/fd/2"), "pid": os.getpid(), "pgid": os.getpgrp(), "started_monotonic": time.monotonic()}}
+ with open(os.environ["PREVIEW_LOG"], "a", encoding="utf-8") as log:
+     log.write(json.dumps(record, ensure_ascii=False) + "\n")
+     log.flush()
+@@ -56,7 +56,7 @@
+     sys.stdout.flush()
+     time.sleep(.2)
+ elif mode == "stale":
+-    time.sleep(.25)
++    time.sleep(float(os.environ.get("PREVIEW_DELAY", ".25")))
+     sys.stdout.write({{"blue": "Unicode λ雪🙂\n", "red": "red preview\n", "green": "green preview\n"}}.get(label, label))
+ elif mode == "close-stdout":
+     sys.stdout.write("closed\n")
+@@ -66,6 +66,10 @@
+ elif mode == "unlimited":
+     while True:
+         os.write(1, b"x" * 4096)
++elif mode == "continuous":
++    while True:
++        os.write(1, b"bounded preview traffic\n")
++        time.sleep(.04)
+ elif mode == "nonzero":
+     sys.stdout.write("discard me\n")
+     sys.exit(7)
+@@ -106,6 +110,10 @@
+ 
+ RESULTS = []
+ FIXTURE_LOGS = set()
++DIAGNOSTIC_ERRORS = []
++DIAGNOSTICS_DIR = None
++REPORT_DIR = None
++GROUP_OBSERVATIONS = []
+ class CheckFailure(Exception):
+     pass
+ 
+@@ -128,6 +136,19 @@
+                               text=True, **kwargs)
+     except subprocess.TimeoutExpired as exc:
+         raise CheckFailure(f"timed out after {timeout}s: {' '.join(map(str, args))}") from exc
++
++def run_instrumented(args, input, env):
++    process = subprocess.Popen(args, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
++                               stderr=subprocess.PIPE, text=True, env=env)
++    try:
++        stdout, stderr = process.communicate(input=input, timeout=TIMEOUT)
++    except subprocess.TimeoutExpired as exc:
++        process.kill()
++        stdout, stderr = process.communicate()
++        persist_diagnostics(process.pid, args, process.returncode, True, stderr)
++        raise CheckFailure(f"timed out after {TIMEOUT}s: {' '.join(map(str, args))}") from exc
++    persist_diagnostics(process.pid, args, process.returncode, False, stderr)
++    return subprocess.CompletedProcess(args, process.returncode, stdout, stderr)
+ 
+ 
+ def report(name, passed, detail):
+@@ -138,6 +159,24 @@
+         raise CheckFailure(line)
+ 
+ 
++def check_diagnostics():
++    require(not DIAGNOSTIC_ERRORS, "sanitizer diagnostics found: " + "; ".join(DIAGNOSTIC_ERRORS))
++
++def persist_diagnostics(pid, command, status, forced, stderr):
++    if DIAGNOSTICS_DIR is not None:
++        DIAGNOSTICS_DIR.mkdir(parents=True, exist_ok=True)
++        stem = f"{pid}-{time.time_ns()}-{Path(command[0]).name}"
++        (DIAGNOSTICS_DIR / f"{stem}.stderr").write_text(stderr, encoding="utf-8")
++        with (DIAGNOSTICS_DIR / "processes.jsonl").open("a", encoding="utf-8") as index:
++            index.write(json.dumps({"pid": pid, "command": command, "status": status,
++                                    "forced_cleanup": forced, "stderr": f"{stem}.stderr"}) + "\n")
++    if re.search(r"AddressSanitizer|LeakSanitizer|UndefinedBehaviorSanitizer|"
++                 r"runtime error:|heap-use-after-free|ERROR: (?:ASan|LSan|UBSan)",
++                 stderr, re.I):
++        DIAGNOSTIC_ERRORS.append(f"pid {pid}: {stderr.strip()}")
++
++
++
+ 
+ 
+ def make_helper(path):
+@@ -154,30 +193,43 @@
+ def read_log(path):
+     if not path.exists():
+         return []
+-    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
++    lines = path.read_text(encoding="utf-8").splitlines(keepends=True)
++    if lines and not lines[-1].endswith("\n"):
++        lines.pop()  # The helper may still be writing its final JSONL record.
++    return [json.loads(line) for line in lines]
+ def cleanup_helper_group(env):
+     log = env.get("PREVIEW_LOG")
+     if not log or log not in FIXTURE_LOGS:
+         return
+     records = read_log(Path(log))
+-    if not records:
+-        return
+-    pgid = records[-1]["pgid"]
+-    if pgid <= 1 or pgid == os.getpgrp():
+-        return
+-    for entry in Path("/proc").iterdir():
+-        if entry.name.isdigit():
++    private_log = b"PREVIEW_LOG=" + os.fsencode(log)
++    for pgid in {record["pgid"] for record in records}:
++        if pgid <= 1 or pgid == os.getpgrp():
++            continue
++        for entry in Path("/proc").iterdir():
++            if not entry.name.isdigit():
++                continue
+             try:
+-                if int((entry / "stat").read_text().split()[4]) == pgid:
++                fields = (entry / "stat").read_text().rsplit(")", 1)[1].split()
++                if int(fields[2]) != pgid:
++                    continue
++                if private_log not in (entry / "environ").read_bytes().split(bytes([0])):
++                    continue
++                current = (entry / "stat").read_text().rsplit(")", 1)[1].split()
++                if int(current[2]) == pgid:
+                     os.killpg(pgid, signal.SIGKILL)
+-                    return
++                    break
+             except (FileNotFoundError, ProcessLookupError, PermissionError, ValueError):
+                 pass
+ 
+ 
+-def observe_group(pgid):
+-    """Allow up to two seconds for cooperative termination, not instant absence."""
+-    deadline = time.monotonic() + 2
++def observe_group(pgid, cancellation_started):
++    """Observe only within two seconds of the conservative cancellation/completion bound."""
++    deadline = cancellation_started + 2
++    observer_started = time.monotonic()
++    require(observer_started <= deadline,
++            f"process-group observation started after its two-second bound: pgid={pgid}, "
++            f"started={observer_started:.6f}, deadline={deadline:.6f}")
+     while True:
+         live, zombies = [], []
+         for entry in Path("/proc").iterdir():
+@@ -189,7 +241,14 @@
+                     (zombies if fields[0] == "Z" else live).append(int(entry.name))
+             except (FileNotFoundError, ProcessLookupError, PermissionError, ValueError):
+                 pass
+-        if not live or time.monotonic() >= deadline:
++        observed = time.monotonic()
++        require(observed <= deadline,
++                f"infrastructure failure: process scan finished after its anchored deadline: pgid={pgid}")
++        if not live or observed >= deadline:
++            GROUP_OBSERVATIONS.append({"pgid": pgid, "cancellation_origin_monotonic": cancellation_started,
++                                       "deadline_monotonic": deadline, "observed_monotonic": observed,
++                                       "observation_elapsed": observed - cancellation_started,
++                                       "live": live, "zombies": zombies})
+             return live, zombies
+         time.sleep(.02)
+ 
+@@ -201,13 +260,13 @@
+         self.input = tempfile.TemporaryFile()
+         self.input.write(data)
+         self.input.seek(0)
+-        self.process = subprocess.Popen([executable, *args], stdin=self.input,
++        self.command = [executable, *args]
++        self.process = subprocess.Popen(self.command, stdin=self.input,
+                                         stdout=self.stdout, stderr=self.stderr, env=env,
+                                         start_new_session=True,
+                                         pass_fds=() if inherited_fd is None else (inherited_fd,))
+         self.env = env
+         self.window = None
+-
+     def wait_window(self):
+         deadline = time.monotonic() + TIMEOUT
+         while time.monotonic() < deadline:
+@@ -223,8 +282,15 @@
+ 
+     def key(self, *keys):
+         if keys:
+-            result = run([tool("xdotool"), "key", "--clearmodifiers", *keys])
+-            require(result.returncode == 0, f"keyboard injection failed: {result.stderr}")
++            # Injection start conservatively precedes application cancellation.
++            self.last_key_started = time.monotonic()
++            try:
++                result = run([tool("xdotool"), "key", "--clearmodifiers", *keys])
++            except CheckFailure as error:
++                raise CheckFailure(f"infrastructure failure: keyboard injector: {error}") from error
++            self.last_key_delivered = time.monotonic()
++            require(result.returncode == 0,
++                    f"infrastructure failure: keyboard injection failed: {result.stderr}")
+             time.sleep(.05)
+ 
+     def info(self):
+@@ -258,12 +324,16 @@
+         return self.stdout_bytes(), status, self.stderr_text()
+ 
+     def close(self):
+-        if self.process.poll() is None:
++        forced = self.process.poll() is None
++        if forced:
+             self.process.kill()
+             try:
+                 self.process.wait(timeout=2)
+             except subprocess.TimeoutExpired:
+                 pass
++        status = self.process.poll()
++        stderr = self.stderr_text()
++        persist_diagnostics(self.process.pid, self.command, status, forced, stderr)
+         for file in (self.input, self.stdout, self.stderr):
+             file.close()
+         cleanup_helper_group(self.env)
+@@ -314,6 +384,174 @@
+     xlib.XMapWindow(display, window)
+     xlib.XSync(display, 0)
+     return xlib, display, window
++
++def ximage_signature(window, area):
++    class XImageHeader(ctypes.Structure):
++        _fields_ = [("width", ctypes.c_int), ("height", ctypes.c_int),
++                    ("xoffset", ctypes.c_int), ("format", ctypes.c_int),
++                    ("data", ctypes.c_void_p), ("byte_order", ctypes.c_int),
++                    ("bitmap_unit", ctypes.c_int), ("bitmap_bit_order", ctypes.c_int),
++                    ("bitmap_pad", ctypes.c_int), ("depth", ctypes.c_int),
++                    ("bytes_per_line", ctypes.c_int), ("bits_per_pixel", ctypes.c_int),
++                    ("red_mask", ctypes.c_ulong), ("green_mask", ctypes.c_ulong),
++                    ("blue_mask", ctypes.c_ulong), ("obdata", ctypes.c_void_p)]
++    xlib = ctypes.CDLL("libX11.so.6")
++    xlib.XOpenDisplay.restype = ctypes.c_void_p
++    xlib.XGetImage.argtypes = [ctypes.c_void_p, ctypes.c_ulong, ctypes.c_int, ctypes.c_int,
++                               ctypes.c_uint, ctypes.c_uint, ctypes.c_ulong, ctypes.c_int]
++    xlib.XGetImage.restype = ctypes.c_void_p
++    xlib.XDestroyImage.argtypes = [ctypes.c_void_p]
++    xlib.XCloseDisplay.argtypes = [ctypes.c_void_p]
++    display = xlib.XOpenDisplay(None)
++    require(display, "XGetImage could not open DISPLAY")
++    x, y, width, height = area
++    image = xlib.XGetImage(display, int(window), x, y, width, height, ctypes.c_ulong(-1).value, 2)
++    require(image, "XGetImage failed")
++    try:
++        header = ctypes.cast(image, ctypes.POINTER(XImageHeader)).contents
++        data = ctypes.string_at(header.data, header.bytes_per_line * header.height)
++        return hashlib.sha256(data).hexdigest()
++    finally:
++        xlib.XDestroyImage(image)
++        xlib.XCloseDisplay(display)
++
++EXPOSE_TRAFFIC_SOURCE = r'''
++import ctypes, json, os, sys, time
++class Expose(ctypes.Structure):
++    _fields_ = [("type", ctypes.c_int), ("serial", ctypes.c_ulong),
++                ("send_event", ctypes.c_int), ("display", ctypes.c_void_p),
++                ("window", ctypes.c_ulong), ("x", ctypes.c_int), ("y", ctypes.c_int),
++                ("width", ctypes.c_int), ("height", ctypes.c_int), ("count", ctypes.c_int)]
++class Event(ctypes.Union):
++    _fields_ = [("expose", Expose), ("pad", ctypes.c_long * 24)]
++class XError(ctypes.Structure):
++    _fields_ = [("type", ctypes.c_int), ("display", ctypes.c_void_p),
++                ("resourceid", ctypes.c_ulong), ("serial", ctypes.c_ulong),
++                ("error_code", ctypes.c_ubyte), ("request_code", ctypes.c_ubyte),
++                ("minor_code", ctypes.c_ubyte)]
++x = ctypes.CDLL("libX11.so.6")
++x.XOpenDisplay.restype = ctypes.c_void_p
++x.XSendEvent.argtypes = [ctypes.c_void_p, ctypes.c_ulong, ctypes.c_int,
++                         ctypes.c_long, ctypes.c_void_p]
++x.XSync.argtypes = [ctypes.c_void_p, ctypes.c_int]
++x.XCloseDisplay.argtypes = [ctypes.c_void_p]
++x.XSetErrorHandler.argtypes = [ctypes.c_void_p]
++d = x.XOpenDisplay(None)
++if not d:
++    raise SystemExit("XOpenDisplay failed")
++bad_window, unexpected = [False], []
++@ctypes.CFUNCTYPE(ctypes.c_int, ctypes.c_void_p, ctypes.POINTER(XError))
++def on_error(_display, event):
++    if event.contents.error_code == 3 and event.contents.resourceid == window:
++        bad_window[0] = True
++    else:
++        unexpected.append(event.contents.error_code)
++    return 0
++x.XSetErrorHandler(ctypes.cast(on_error, ctypes.c_void_p))
++window, stop, result, ready = int(sys.argv[1]), sys.argv[2], sys.argv[3], sys.argv[4]
++started, count, sync_rtts, probe_started, first_ack = time.monotonic(), 0, [], None, None
++try:
++    while count < 300 and time.monotonic() - started < 3:
++        probe_after_stop = False
++        if os.path.exists(stop):
++            with open(stop, encoding="utf-8") as control:
++                probe_after_stop = control.read() == "probe"
++        if os.path.exists(stop) and not probe_after_stop:
++            break
++        if probe_after_stop:
++            probe_started = probe_started or time.monotonic()
++            if time.monotonic() - probe_started >= 1:
++                break
++        event = Event()
++        event.expose = Expose(12, 0, 1, d, window, 0, 0, 1, 1, 0)
++        if not x.XSendEvent(d, window, 0, 1 << 15, ctypes.byref(event)):
++            raise RuntimeError("XSendEvent returned failure")
++        count += 1
++        if count == 1 or count % 10 == 0 or probe_after_stop:
++            before = time.monotonic()
++            x.XSync(d, 0)
++            rtt = time.monotonic() - before
++            sync_rtts.append(rtt)
++            if count == 1:
++                first_ack = time.monotonic()
++                with open(ready + ".pending", "w", encoding="utf-8") as f:
++                    json.dump({"first_event_ack_monotonic": first_ack,
++                               "first_xsync_rtt_seconds": rtt}, f)
++                os.replace(ready + ".pending", ready)
++        if unexpected:
++            raise RuntimeError("unexpected X11 error codes: " + repr(unexpected))
++        if bad_window[0]:
++            if not probe_after_stop:
++                with open(stop, encoding="utf-8") as control:
++                    if control.read() != "probe":
++                        raise RuntimeError("unexpected BadWindow before the requested teardown probe")
++            break
++        time.sleep(.01)
++    if not bad_window[0]:
++        x.XSync(d, 0)
++    if unexpected:
++        raise RuntimeError("unexpected X11 error codes: " + repr(unexpected))
++finally:
++    x.XCloseDisplay(d)
++with open(result, "w", encoding="utf-8") as f:
++    json.dump({"count": count, "started_monotonic": started,
++               "stopped_monotonic": time.monotonic(),
++               "first_event_ack_monotonic": first_ack,
++               "first_xsync_rtt_seconds": sync_rtts[0] if sync_rtts else None,
++               "max_xsync_rtt_seconds": max(sync_rtts, default=0),
++               "expected_badwindow_after_destroy": bad_window[0]}, f)
++'''
++
++
++def start_expose_traffic(window, output, name):
++    stop = output / f"{name}.stop"
++    result = output / f"{name}.json"
++    ready = output / f"{name}.ready.json"
++    process = subprocess.Popen([sys.executable, "-c", EXPOSE_TRAFFIC_SOURCE,
++                                str(window), str(stop), str(result), str(ready)],
++                               stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
++    try:
++        deadline = time.monotonic() + 1
++        while not ready.is_file() and process.poll() is None and time.monotonic() < deadline:
++            time.sleep(.005)
++        require(ready.is_file() and process.poll() is None, "Expose generator did not become ready")
++        handshake = json.loads(ready.read_text(encoding="utf-8"))
++        require(handshake.get("first_xsync_rtt_seconds") is not None and
++                handshake["first_xsync_rtt_seconds"] < .1,
++                f"invalid or delayed Expose-generator handshake: {handshake}")
++        return process, stop, result
++    except (CheckFailure, OSError, ValueError) as error:
++        stop.write_text("", encoding="utf-8")
++        try:
++            stdout, stderr = process.communicate(timeout=1)
++        except subprocess.TimeoutExpired:
++            process.kill()
++            stdout, stderr = process.communicate()
++        raise CheckFailure(f"infrastructure failure: Expose handshake: {error}; "
++                           f"generator diagnostics: {stderr or stdout}") from error
++
++
++def stop_expose_traffic(process, stop, result, probe_badwindow=False):
++    if probe_badwindow:
++        require(stop.is_file() and stop.read_text(encoding="utf-8") == "probe",
++                "infrastructure failure: window-destruction probe was not armed before Escape")
++    else:
++        stop.write_text("", encoding="utf-8")
++    try:
++        stdout, stderr = process.communicate(timeout=2)
++    except subprocess.TimeoutExpired:
++        process.kill()
++        stdout, stderr = process.communicate()
++        raise CheckFailure(f"infrastructure failure: X11 event generator exceeded its hard stop: {stderr or stdout}")
++    require(process.returncode == 0 and result.is_file(),
++            f"X11 event generator infrastructure failure: status={process.returncode}, stderr={stderr}")
++    stats = json.loads(result.read_text(encoding="utf-8"))
++    require(stats["count"] > 0 and
++            (not probe_badwindow or stats["expected_badwindow_after_destroy"]),
++            f"X11 event generator sent no events or missed required BadWindow probe: {stats}")
++    require(stats["max_xsync_rtt_seconds"] < .1,
++            f"infrastructure failure: X server round-trip delay prevents a fairness measurement: {stats}")
++    return stats
+ 
+ 
+ def protocol_cases(binary, helper, output, base_env, token_mode=False):
+@@ -375,7 +613,7 @@
+                 records = read_log(log)
+                 require(records, f"{mode} helper did not record its process group")
+                 pgid = records[-1]["pgid"]
+-                live, zombies = observe_group(pgid)
++                live, zombies = observe_group(pgid, records[-1]["started_monotonic"])
+                 require(not live, f"{mode} process group {pgid} still has live members: {live}")
+                 report(f"helper-group-termination-{mode}", True,
+                        f"no live group members after observation; zombies={zombies}")
+@@ -557,33 +795,253 @@
+                f"{len(records)} request(s); latest label={records[-1]['label']!r}")
+     finally:
+         menu.close()
++    area = (pane, row, geometry["Width"] - pane, row * 4)
++    footer_area = (pane, row * 5, geometry["Width"] - pane, row)
+     blue = invoke(str(binary), [*menu_options, "-P", str(helper), "-l", "5"], b"blue\n",
+                   helper_env(base_env, output / "blue-reference.jsonl"))
+     try:
+         time.sleep(.15)
+         blue_image = output / "blue-reference.png"
+         blue.screenshot(blue_image)
++        blue_signature = ximage_signature(blue.window, area)
++        blue_footer_signature = ximage_signature(blue.window, footer_area)
+     finally:
+         blue.close()
++    green_ref = invoke(str(binary), [*menu_options, "-P", str(helper), "-l", "5"], b"green\n",
++                       helper_env(base_env, output / "green-reference.jsonl", "stale", PREVIEW_DELAY=.15))
++    try:
++        time.sleep(.3)
++        forbidden_green = ximage_signature(green_ref.window, area)
++    finally:
++        green_ref.close()
++    red_ref = invoke(str(binary), [*menu_options, "-P", str(helper), "-l", "5"], b"red\n",
++                     helper_env(base_env, output / "red-reference.jsonl"))
++    try:
++        time.sleep(.25)
++        red_image = output / "red-reference.png"
++        red_ref.screenshot(red_image)
++        require(region_signature(red_image, *area)[0] > 0,
++                "forbidden superseded-content reference did not render")
++        forbidden_red = ximage_signature(red_ref.window, area)
++    finally:
++        red_ref.close()
+     stale_log = output / "stale-selection.jsonl"
+     menu = invoke(str(binary), [*menu_options, "-P", str(helper), "-l", "5"], b"red\ngreen\nblue\n",
+-                  helper_env(base_env, stale_log, "stale"))
+-    try:
+-        time.sleep(.1)
+-        run([tool("xdotool"), "key", "--delay", "1", "Down", "Down"])
+-        time.sleep(.45)
++                  helper_env(base_env, stale_log, "stale", PREVIEW_DELAY=.8))
++    try:
++        deadline = time.monotonic() + 2
++        while not read_log(stale_log) and time.monotonic() < deadline:
++            time.sleep(.005)
+         records = read_log(stale_log)
++        require(records and records[0]["label"] == "red",
++                "stale-output test did not observe old helper startup before superseding it")
++        selection_pixel = (1, row + row // 2, 1, 1)
++        initial_timestamp = time.monotonic()
++        initial_highlight = ximage_signature(menu.window, selection_pixel)
++        initial_signature = ximage_signature(menu.window, area)
++        initial_footer = ximage_signature(menu.window, footer_area)
++        samples = [{"monotonic": initial_timestamp, "highlight": initial_highlight,
++                    "signature": initial_signature, "footer_signature": initial_footer}]
++        injection_started = time.monotonic()
++        injector = subprocess.Popen([tool("xdotool"), "key", "--clearmodifiers",
++                                     "--delay", "1", "Down", "Down"],
++                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
++        old_would_complete = records[0]["started_monotonic"] + .8
++        superseded_at = intermediate_signature = newest_started = output_seen_at = None
++        delayed_current_alive = False
++        sampling_deadline = injection_started + 1.5
++        while time.monotonic() < sampling_deadline:
++            records = read_log(stale_log)
++            timestamp = time.monotonic()
++            highlight = ximage_signature(menu.window, selection_pixel)
++            signature = ximage_signature(menu.window, area)
++            footer_signature = ximage_signature(menu.window, footer_area)
++            newest = records[-1] if len(records) >= 2 else None
++            newest_started = newest["started_monotonic"] if newest else None
++            newest_alive = bool(newest and Path("/proc", str(newest["pid"])).exists())
++            samples.append({"monotonic": timestamp, "highlight": highlight, "signature": signature,
++                            "footer_signature": footer_signature, "newest_helper_alive": newest_alive})
++            if superseded_at is None and highlight != initial_highlight:
++                superseded_at, intermediate_signature = timestamp, signature
++            if (superseded_at is not None and newest_started is not None and
++                    timestamp >= newest_started + .35 and signature != blue_signature and newest_alive):
++                delayed_current_alive = True
++            if signature == blue_signature:
++                output_seen_at = timestamp
++            if (superseded_at is not None and output_seen_at is not None and
++                    timestamp >= old_would_complete):
++                break
++            time.sleep(.02)
++        try:
++            injector_stdout, injector_stderr = injector.communicate(timeout=1)
++        except subprocess.TimeoutExpired:
++            injector.kill()
++            injector_stdout, injector_stderr = injector.communicate()
++            raise CheckFailure("infrastructure failure: stale-case xdotool injector exceeded timeout")
++        require(injector.returncode == 0,
++                f"infrastructure failure: stale-case xdotool injector failed: {injector_stderr or injector_stdout}")
++        require(superseded_at is not None and output_seen_at is not None and
++                len(records) >= 2 and records[-1]["label"] == "blue",
++                f"selection transition, old deadline, or newest output not observed: records={records}")
++        nav_elapsed = superseded_at - injection_started
++        sample_gaps = [samples[index]["monotonic"] - samples[index - 1]["monotonic"]
++                       for index in range(1, len(samples))]
++        max_sample_gap = max(sample_gaps, default=0)
++        sample_path = output / "stale-intermediate-samples.json"
++        sample_path.write_text(json.dumps({"samples": samples, "injection_started_monotonic": injection_started,
++                                           "selection_superseded_monotonic": superseded_at,
++                                           "old_helper_would_complete_monotonic": old_would_complete,
++                                           "newest_helper_started_monotonic": records[-1]["started_monotonic"],
++                                           "newest_output_seen_monotonic": output_seen_at,
++                                           "reference_signatures": {"loading_body": initial_signature,
++                                                                    "loading_footer": initial_footer,
++                                                                    "blue_body": blue_signature,
++                                                                    "blue_footer": blue_footer_signature,
++                                                                    "forbidden_red": forbidden_red,
++                                                                    "forbidden_green": forbidden_green},
++                                           "requested_sleep_interval_seconds": .02,
++                                           "max_observed_sample_gap_seconds": max_sample_gap,
++                                           "sampling_ceiling": "Transient content shorter than an observed sample gap may be missed."},
++                                          indent=2) + "\n", encoding="utf-8")
++        after_supersede = [sample for sample in samples if sample["monotonic"] >= superseded_at]
++        require(after_supersede and intermediate_signature == initial_signature and
++                delayed_current_alive and output_seen_at >= old_would_complete and
++                all(sample["signature"] in (initial_signature, blue_signature) and
++                    sample["signature"] not in (forbidden_red, forbidden_green) and
++                    sample["footer_signature"] in (initial_footer, blue_footer_signature)
++                    for sample in after_supersede),
++                f"superseded content observed or stale interval was not sampled through new output: {sample_path}")
+         image = output / "stale-selection.png"
+         menu.screenshot(image)
+-        area = (pane, row, geometry["Width"] - pane, row * 4)
+         current = region_signature(image, *area)[1]
+         expected = region_signature(blue_image, *area)[1]
+-        require(records and records[-1]["label"] == "blue" and current == expected,
+-                f"stale helper output was published after selection changed: records={records}")
++        require(current == expected,
++                f"newest blue helper output not rendered after stale interval: records={records}")
+         report("helper-stale-selection-discard", True,
+-               f"latest selection blue rendered; screenshot={image}")
++               f"old start observed; newest output rendered; navigation={nav_elapsed:.3f}s; "
++               f"samples={len(samples)} max-gap={max_sample_gap:.3f}s; transients shorter may be missed; "
++               f"evidence={sample_path}")
+     finally:
+         menu.close()
++
++    timeout_log = output / "fairness-timeout.jsonl"
++    timeout_menu = invoke(str(binary), [*menu_options, "-P", str(helper), "-l", "5"],
++                          b"red\ngreen\n", helper_env(base_env, timeout_log, "continuous"))
++    traffic = stop = result = None
++    try:
++        deadline = time.monotonic() + 2
++        while not read_log(timeout_log) and time.monotonic() < deadline:
++            time.sleep(.005)
++        timeout_records = read_log(timeout_log)
++        require(timeout_records, "continuous timeout helper did not actually start")
++        footer_area = (pane, row * 5, geometry["Width"] - pane, row)
++        loading_footer = ximage_signature(timeout_menu.window, footer_area)
++        traffic, stop, result = start_expose_traffic(timeout_menu.window, output, "fairness-timeout-events")
++        timeout_samples = []
++        timeout_sampled_at = None
++        deadline = time.monotonic() + 1.8
++        while time.monotonic() < deadline:
++            timestamp = time.monotonic()
++            signature = ximage_signature(timeout_menu.window, footer_area)
++            timeout_samples.append({"monotonic": timestamp, "signature": signature})
++            if signature != loading_footer:
++                timeout_sampled_at = timestamp
++                break
++            time.sleep(.02)
++        require(timeout_sampled_at is not None, "timeout status did not change under Expose traffic")
++        timeout_elapsed = timeout_sampled_at - timeout_records[0]["started_monotonic"]
++        timeout_image = output / "fairness-timeout.png"
++        timeout_menu.screenshot(timeout_image)
++        timeout_state = region_signature(timeout_image, pane, row * 5,
++                                         geometry["Width"] - pane, row)[1]
++        traffic_stats = stop_expose_traffic(traffic, stop, result)
++        traffic = None
++        require(timeout_state == word_signatures["Timed out"] and .8 <= timeout_elapsed <= 1.3,
++                f"deadline was not serviced during Expose traffic: state={timeout_state}, "
++                f"elapsed={timeout_elapsed:.3f}s after Python helper-start timestamp")
++        timeout_gaps = [timeout_samples[index]["monotonic"] - timeout_samples[index - 1]["monotonic"]
++                        for index in range(1, len(timeout_samples))]
++        (output / "fairness-timeout-evidence.json").write_text(
++            json.dumps({"helper_started_monotonic": timeout_records[0]["started_monotonic"],
++                        "timeout_sample_monotonic": timeout_sampled_at, "elapsed": timeout_elapsed,
++                        "startup_uncertainty": "Python timestamp is post-exec; application deadline starts before exec.",
++                        "samples": timeout_samples,
++                        "max_observed_sample_gap_seconds": max(timeout_gaps, default=0),
++                        "traffic": traffic_stats, "timeout_signature": timeout_state}, indent=2) + "\n",
++            encoding="utf-8")
++        report("helper-deadline-under-x11-traffic", True,
++               f"Timed out at {timeout_elapsed:.3f}s with {traffic_stats['count']} bounded-rate Expose events; "
++               f"first/max XSync RTT={traffic_stats['first_xsync_rtt_seconds']:.6f}/"
++               f"{traffic_stats['max_xsync_rtt_seconds']:.6f}s")
++    finally:
++        try:
++            if traffic is not None:
++                stop_expose_traffic(traffic, stop, result)
++        finally:
++            timeout_menu.close()
++
++    cancel_log = output / "fairness-cancel.jsonl"
++    cancel_menu = invoke(str(binary), [*menu_options, "-P", str(helper), "-l", "5"],
++                         b"red\ngreen\n", helper_env(base_env, cancel_log, "continuous"))
++    traffic = stop = result = None
++    try:
++        deadline = time.monotonic() + 2
++        while not read_log(cancel_log) and time.monotonic() < deadline:
++            time.sleep(.005)
++        require(read_log(cancel_log), "continuous cancellation helper did not start")
++        traffic, stop, result = start_expose_traffic(cancel_menu.window, output, "fairness-cancel-events")
++        navigation_started = time.monotonic()
++        cancel_menu.key("Down")
++        navigation_elapsed = time.monotonic() - navigation_started
++        navigation_dispatch = cancel_menu.last_key_delivered - cancel_menu.last_key_started
++        require(navigation_dispatch < .2,
++                f"infrastructure failure: navigation injector took {navigation_dispatch:.3f}s")
++        deadline = time.monotonic() + .5
++        while len(read_log(cancel_log)) < 2 and time.monotonic() < deadline:
++            time.sleep(.005)
++        cancel_records = read_log(cancel_log)
++        require(len(cancel_records) >= 2 and cancel_records[-1]["label"] == "green",
++                f"navigation did not start next helper under Expose traffic: {cancel_records}")
++        next_helper_start_latency = cancel_records[-1]["started_monotonic"] - navigation_started
++        # Arm the expected window destruction before Escape, without a partial control-file read.
++        pending = stop.with_suffix(".pending")
++        pending.write_text("probe", encoding="utf-8")
++        pending.replace(stop)
++        cancellation_started = time.monotonic()
++        actual = cancel_menu.finish("Escape")[:2]
++        cancellation_elapsed = time.monotonic() - cancellation_started
++        cancellation_dispatch = cancel_menu.last_key_delivered - cancel_menu.last_key_started
++        require(cancellation_dispatch < .2,
++                f"infrastructure failure: Escape injector took {cancellation_dispatch:.3f}s")
++        traffic_stats = stop_expose_traffic(traffic, stop, result, probe_badwindow=True)
++        traffic = None
++        require(actual == (b"", 1) and navigation_elapsed < .5 and
++                next_helper_start_latency < .5 and cancellation_elapsed < .5,
++                f"active cancellation/navigation stalled under X11 traffic: "
++                f"stdout/status={actual}, navigation={navigation_elapsed:.3f}s, "
++                f"next-helper={next_helper_start_latency:.3f}s, cancel={cancellation_elapsed:.3f}s")
++        (output / "fairness-cancel-evidence.json").write_text(
++            json.dumps({"navigation_started_monotonic": navigation_started,
++                        "next_helper_started_monotonic": cancel_records[-1]["started_monotonic"],
++                        "navigation_elapsed": navigation_elapsed,
++                        "navigation_injector_elapsed": navigation_dispatch,
++                        "next_helper_start_latency": next_helper_start_latency,
++                        "cancellation_started_monotonic": cancellation_started,
++                        "cancellation_elapsed": cancellation_elapsed,
++                        "escape_injector_elapsed": cancellation_dispatch,
++                        "traffic": traffic_stats}, indent=2) + "\n", encoding="utf-8")
++        report("helper-cancellation-under-x11-traffic", True,
++               f"next label helper and Escape completed under {traffic_stats['count']} Expose events; "
++               f"navigation={navigation_elapsed:.3f}s next-start={next_helper_start_latency:.3f}s "
++               f"cancellation={cancellation_elapsed:.3f}s; expected BadWindow handled; "
++               f"first/max XSync RTT={traffic_stats['first_xsync_rtt_seconds']:.6f}/"
++               f"{traffic_stats['max_xsync_rtt_seconds']:.6f}s")
++    finally:
++        try:
++            if traffic is not None:
++                stop_expose_traffic(traffic, stop, result)
++        finally:
++            cancel_menu.close()
+ 
+     log = output / "zero-matches-running.jsonl"
+     menu = invoke(str(binary), [*menu_options, "-P", str(helper), "-l", "5"],
+@@ -600,7 +1058,7 @@
+         blank, _ = region_signature(image, pane, row, geometry["Width"] - pane, row * 5)
+         require(blank == 0 and elapsed < .25, f"blocked-stdin filtering failed: {blank}, {elapsed}")
+         for record in records:
+-            live, zombies = observe_group(record["pgid"])
++            live, zombies = observe_group(record["pgid"], start)
+             require(not live, f"zero matches left helper group alive: {live}")
+         require(menu.finish("Return")[:2] == (b"z\n", 0),
+                 "zero matches changed typed-input stdout")
+@@ -637,7 +1095,7 @@
+                     f"{key} blocked or changed output: {actual}, elapsed={elapsed}")
+             require(not menu.stderr_text(), "helper stderr leaked on output/cancel")
+             for record in read_log(log):
+-                live, zombies = observe_group(record["pgid"])
++                live, zombies = observe_group(record["pgid"], start)
+                 require(not live, f"{key} left a live helper group: {live}")
+             report(f"helper-running-key-{key}", True,
+                    f"stdout/status preserved; elapsed={elapsed:.3f}s; groups terminated")
+@@ -645,6 +1103,7 @@
+             menu.close()
+     released = invoke(str(binary), [], b"keyboard-released\n", base_env)
+     try:
++        baseline_fd_count = len(list((Path("/proc") / str(released.process.pid) / "fd").iterdir()))
+         actual = released.finish("Return")[:2]
+         require(actual == (b"keyboard-released\n", 0),
+                 f"keyboard grab was not released after output-key completion: {actual}")
+@@ -653,30 +1112,103 @@
+         released.close()
+ 
+     repeated = invoke(str(binary), [*menu_options, "-P", str(helper), "-l", "5"], b"red\ngreen\n",
+-                       helper_env(base_env, output / "repeated.jsonl"))
+-    try:
+-        rss, fds, children = [], [], []
++                      helper_env(base_env, output / "repeated.jsonl", "no-read"))
++    try:
++        rss, fds, active_children, settled_children = [], [], [], []
+         proc = Path("/proc") / str(repeated.process.pid)
+-        time.sleep(.2)
+-        settled_fds = len(list((proc / "fd").iterdir()))
+-        for _ in range(100):
+-            repeated.key("Down")
+-            repeated.key("Up")
++        log = output / "repeated.jsonl"
++        children_path = proc / "task" / str(repeated.process.pid) / "children"
++        deadline = time.monotonic() + 2
++        while not read_log(log) and time.monotonic() < deadline:
++            time.sleep(.005)
++        records = read_log(log)
++        require(records, "repeated-request baseline helper did not actually start")
++        previous_record = records[-1]
++        previous = previous_record["pid"]
++        initial_count = len(records)
++        repeated_observed_groups = []
++        for index in range(200):
++            cancel_bound = time.monotonic()
++            repeated.key("Down" if index % 2 == 0 else "Up")
++            expected_count = initial_count + index + 1
++            deadline = cancel_bound + 2
++            while len(read_log(log)) < expected_count and time.monotonic() < deadline:
++                time.sleep(.005)
++            records = read_log(log)
++            require(len(records) >= expected_count,
++                    f"repeated helper startup missing: expected {expected_count}, got {len(records)}")
++            record = records[expected_count - 1]
++            if previous is not None:
++                while Path("/proc", str(previous)).exists() and time.monotonic() < deadline:
++                    time.sleep(.005)
++                require(not Path("/proc", str(previous)).exists(),
++                        f"old direct helper PID {previous} was not reaped while menu remained alive")
++                live, zombies = observe_group(previous_record["pgid"], cancel_bound)
++                require(not live, f"repeated request left group {previous_record['pgid']} alive: {live}")
++                repeated_observed_groups.append(previous_record["pgid"])
++            previous_record = record
++            previous = record["pid"]
++            active_children.append(children_path.read_text().split())
+             rss.append(int((proc / "statm").read_text().split()[1]))
+             fds.append(len(list((proc / "fd").iterdir())))
+-            children.append(len((proc / "task" / str(repeated.process.pid) / "children").read_text().split()))
+-        require(max(rss) - min(rss) <= 64 and max(fds) <= settled_fds + 2 and max(children) <= 1,
+-                f"repeated helper requests grew menu resources: rss={rss}, fds={fds}, children={children}")
++            require(active_children[-1] == [str(previous)] and
++                    Path("/proc", str(previous), "stat").read_text().rsplit(")", 1)[1].split()[0] != "Z",
++                    f"resource sample did not contain the confirmed live helper {previous}")
++        cancel_bound = time.monotonic()
++        repeated.key("z")
++        deadline = cancel_bound + 2
++        while children_path.read_text().strip() and time.monotonic() < deadline:
++            time.sleep(.005)
++        settled_children = children_path.read_text().split()
++        settled_rss = int((proc / "statm").read_text().split()[1])
++        settled_fds = len(list((proc / "fd").iterdir()))
++        require(not settled_children and not Path("/proc", str(previous)).exists(),
++                f"settled helper was not reaped: children={settled_children}, pid={previous}")
++        live, zombies = observe_group(previous_record["pgid"], cancel_bound)
++        require(not live, f"final repeated request left group {previous_record['pgid']} alive: {live}")
++        repeated_observed_groups.append(previous_record["pgid"])
++        records = read_log(log)
++        unique_pids = {record["pid"] for record in records}
++        require(len(records) >= 200 and len(unique_pids) >= 200,
++                f"explicit minimum 200 unique helper starts not met: {len(records)} records, "
++                f"{len(unique_pids)} unique PIDs")
++        # Treat the first ten active samples as startup/quarantine warmup; retain them in raw evidence.
++        warmup_count = 10
++        maps = (proc / "maps").read_text(errors="replace")
++        asan = "libasan" in maps or "libclang_rt.asan" in maps
++        rss_budget_pages = 1024 if asan else 64
++        measured_rss = rss[warmup_count:] + [settled_rss]
++        measured_fds = fds + [settled_fds]
++        require(max(measured_rss) - min(measured_rss) <= rss_budget_pages and
++                settled_fds == baseline_fd_count and
++                max(measured_fds) <= baseline_fd_count + 2 and
++                max(measured_fds) - min(measured_fds) <= 2 and
++                all(len(children) <= 1 for children in active_children),
++                f"repeated helper resources exceeded post-warmup budget={rss_budget_pages} RSS pages: "
++                f"rss={rss}, fds={fds}, active={active_children}, settled={settled_children}")
++        resource_evidence = {"warmup_samples": warmup_count, "asan_runtime_detected": asan,
++                             "no_preview_fd_baseline": baseline_fd_count,
++                             "rss_budget_pages": rss_budget_pages, "rss_pages": rss,
++                             "fd_counts": fds, "active_child_pids": active_children,
++                             "settled_rss_pages": settled_rss, "settled_fd_count": settled_fds,
++                             "settled_children": settled_children,
++                             "helper_pids": [record["pid"] for record in records]}
++        (output / "repeated-resource-samples.json").write_text(
++            json.dumps(resource_evidence, indent=2) + "\n", encoding="utf-8")
+         report("helper-repeated-request-resources", True,
+-               f"samples=100 rss_pages={min(rss)}..{max(rss)} fd_count={min(fds)}..{max(fds)} direct_children<=1")
++               f"unique_starts={len(records)} active_samples={len(active_children)} warmup={warmup_count} "
++               f"asan={asan} RSS_budget={rss_budget_pages}pages post-warmup="
++               f"{min(measured_rss)}..{max(measured_rss)} fd_count={min(measured_fds)}..{max(measured_fds)}; "
++               "raw samples=repeated-resource-samples.json")
+         actual = repeated.finish("Escape")[:2]
+         require(actual == (b"", 1), f"repeated cancellation changed Escape contract: {actual}")
+         records = read_log(output / "repeated.jsonl")
+-        for pgid in {record["pgid"] for record in records}:
+-            live, zombies = observe_group(pgid)
+-            require(not live, f"repeated requests left helper group {pgid}: {live}")
++        observed = set(repeated_observed_groups)
++        require(len(records) >= 200 and len(observed) == len(records),
++                f"not every repeated helper group was observed at cancellation: "
++                f"starts={len(records)}, timely_groups={len(observed)}")
+         report("helper-repeated-group-cleanup", True,
+-               f"{len(records)} recorded requests, no live recorded groups after exit")
++               f"{len(records)} recorded starts; every group observed within its cancellation bound")
+     finally:
+         repeated.close()
+     # Repeated no-preview sampling reports observable process state without claiming an absence proof.
+@@ -705,7 +1237,15 @@
+     destroyed = Menu(str(binary), [*menu_options, "-P", str(helper), "-l", "5", "-w", hex(parent)],
+                      b"target\n", helper_env(base_env, output / "destroy-window.jsonl", "no-read"))
+     try:
+-        time.sleep(.12)
++        destroyed.wait_window()
++        startup_deadline = time.monotonic() + TIMEOUT
++        while not read_log(output / "destroy-window.jsonl") and time.monotonic() < startup_deadline:
++            require(destroyed.process.poll() is None,
++                    f"menu exited before destruction-test helper startup: {destroyed.stderr_text()}")
++            time.sleep(.005)
++        require(read_log(output / "destroy-window.jsonl"),
++                "destruction test did not observe a helper start before destroying its parent")
++        destroy_started = time.monotonic()
+         xlib.XDestroyWindow(display, parent)
+         xlib.XSync(display, 0)
+         try:
+@@ -717,7 +1257,7 @@
+         records = read_log(output / "destroy-window.jsonl")
+         require(records, "destroyed-window helper never started")
+         pgid = records[0]["pgid"]
+-        live, zombies = observe_group(pgid)
++        live, zombies = observe_group(pgid, destroy_started)
+         require(not live, f"window destruction left helper group {pgid} alive: {live}")
+         report("helper-window-destruction-group", True, f"no live group members; zombies={zombies}")
+     finally:
+@@ -735,6 +1275,8 @@
+                         help="add -F to helper cases, avoiding fuzzy-match sanitizer regressions")
+     parser.add_argument("--binary", required=True, type=Path)
+     parser.add_argument("--output", required=True, type=Path)
++    parser.add_argument("--diagnostics-dir", type=Path,
++                        help="directory for per-process stderr and cleanup records (default: OUTPUT/diagnostics)")
+     parser.add_argument("--isolated-display", action="store_true",
+                         help="confirm DISPLAY is a disposable isolated X server, never a user's display")
+     args = parser.parse_args()
+@@ -750,6 +1292,11 @@
+                 f"{label} must be an executable absolute path: {path}")
+     args.output.mkdir(parents=True, exist_ok=True)
+     args.output = args.output.resolve()
++    require(not any(args.output.iterdir()),
++            f"output directory must be empty to avoid stale test artifacts: {args.output}")
++    global DIAGNOSTICS_DIR, REPORT_DIR
++    DIAGNOSTICS_DIR = (args.diagnostics_dir or (args.output / "diagnostics")).resolve()
++    REPORT_DIR = args.output
+     for name in ("xdotool", "xwininfo", "import", "convert"):
+         tool(name)
+     env = os.environ.copy()
+@@ -768,15 +1315,14 @@
+         ["-P", "/synthetic", "-l", "-18446744073709551615"],
+     ]
+     for options in invalid:
+-        result = run([str(args.binary), *options], input="alpha\n",
+-                     env={**os.environ, "DISPLAY": ""})
++        result = run_instrumented([str(args.binary), *options], input="alpha\n",
++                                  env={**os.environ, "DISPLAY": ""})
+         require(result.returncode == 1 and not result.stdout and result.stderr.startswith("usage:"),
+                 f"invalid preview CLI did not fail before opening display: {options}")
+     report("preview-cli-validation", True, f"{len(invalid)} invalid invocations rejected before display access")
+     if args.helper_only:
+         protocol_cases(args.binary, helper, args.output, env, args.token_mode)
+-        (args.output / "report.txt").write_text("\n".join(RESULTS) + "\n", encoding="utf-8")
+-        (args.output / "results.json").write_text(json.dumps(RESULTS, indent=2) + "\n", encoding="utf-8")
++        check_diagnostics()
+         return 0
+ 
+     ordinary = b"alpha\nAlpine\nbeta\ngamma\ndelta\nepsilon\n" + b"long-label-" + b"x" * 160 + b"\n"
+@@ -1007,9 +1553,7 @@
+ 
+     protocol_cases(args.binary, helper, args.output, env)
+     screenshot_paths.extend(str(path) for path in sorted(args.output.glob("status-*.png")))
+-    report("screenshots", True, ", ".join(map(str, screenshot_paths)))
+-    (args.output / "report.txt").write_text("\n".join(RESULTS) + "\n", encoding="utf-8")
+-    (args.output / "results.json").write_text(json.dumps(RESULTS, indent=2) + "\n", encoding="utf-8")
++    check_diagnostics()
+     return 0
+ 
+ 
+@@ -1017,5 +1561,15 @@
+     try:
+         sys.exit(main())
+     except (CheckFailure, OSError, ValueError) as error:
++        RESULTS.append(f"FAIL: {error}")
+         print(f"FAIL: {error}", file=sys.stderr)
++        if DIAGNOSTIC_ERRORS:
++            print("SANITIZER DIAGNOSTICS: " + "; ".join(DIAGNOSTIC_ERRORS), file=sys.stderr)
+         sys.exit(1)
++    finally:
++        if REPORT_DIR is not None:
++            (REPORT_DIR / "report.txt").write_text("\n".join(RESULTS) + "\n", encoding="utf-8")
++            (REPORT_DIR / "results.json").write_text(json.dumps(RESULTS, indent=2) + "\n",
++                                                       encoding="utf-8")
++            (REPORT_DIR / "group-observations.json").write_text(
++                json.dumps(GROUP_OBSERVATIONS, indent=2) + "\n", encoding="utf-8")
+--- /dev/null
++++ b/tests/preview-boundary.c
+@@ -0,0 +1,355 @@
++#define main dmenu_application_main
++#include "../dmenu.c"
++#undef main
++
++#include <inttypes.h>
++
++#define GUARD_SIZE 32
++#define CASE_GUARD_MS 2000
++
++static unsigned char storage[PREVIEWMAX + 1 + GUARD_SIZE];
++static pid_t active_pgid;
++static int observed_exit_status = -1;
++static int64_t case_started;
++static struct item selected;
++static const unsigned char guard[GUARD_SIZE] = {
++	0xa5, 0x5a, 0xa5, 0x5a, 0xa5, 0x5a, 0xa5, 0x5a,
++	0xa5, 0x5a, 0xa5, 0x5a, 0xa5, 0x5a, 0xa5, 0x5a,
++	0xa5, 0x5a, 0xa5, 0x5a, 0xa5, 0x5a, 0xa5, 0x5a,
++	0xa5, 0x5a, 0xa5, 0x5a, 0xa5, 0x5a, 0xa5, 0x5a
++};
++
++static void
++fail(const char *message)
++{
++	pid_t child = preview.pid;
++	pid_t pgid = active_pgid ? active_pgid : preview.pgid;
++
++	fprintf(stderr, "FAIL preview-boundary: %s\n", message);
++	if (pgid > 0)
++		kill(-pgid, SIGKILL);
++	else if (child > 0)
++		kill(child, SIGKILL);
++	previewclose(&preview.input);
++	previewclose(&preview.output);
++	if (child > 0)
++		while (waitpid(child, NULL, 0) < 0 && errno == EINTR)
++			;
++	exit(1);
++}
++
++static unsigned char
++pattern(size_t i)
++{
++	static const unsigned char special[] = { 0, 0xc3, 0x28, 0xf0, 0x9f, 0x92 };
++	return i < sizeof special ? special[i] : (unsigned char)((i * 131u + i / 251u) & 0xff);
++}
++
++static uint64_t
++hashbytes(const unsigned char *data, size_t len)
++{
++	uint64_t hash = UINT64_C(14695981039346656037);
++	size_t i;
++
++	for (i = 0; i < len; i++) {
++		hash ^= data[i];
++		hash *= UINT64_C(1099511628211);
++	}
++	return hash;
++}
++
++static int
++helper(void)
++{
++	char *end, *value = getenv("PREVIEW_TEST_BYTES");
++	size_t len, offset = 0, input_used = 0, i;
++	unsigned char chunk[4096];
++	char input[128];
++	const char expected[] = "synthetic selected text with spaces\n";
++	int exit_status = atoi(getenv("PREVIEW_TEST_EXIT") ? getenv("PREVIEW_TEST_EXIT") : "0");
++	ssize_t n;
++
++	if (!value || !(len = strtoul(value, &end, 10)) || *end || len > PREVIEWMAX + 1)
++		return 90;
++	while ((n = read(STDIN_FILENO, input + input_used, sizeof input - input_used)) > 0) {
++		input_used += n;
++		if (input_used == sizeof input)
++			return 92;
++	}
++	if (n < 0 || input_used != sizeof expected - 1 ||
++	    memcmp(input, expected, sizeof expected - 1))
++		return 93;
++	if (getenv("PREVIEW_TEST_EOF_ALIVE")) {
++		close(STDOUT_FILENO);
++		sleep(5);
++		return 0;
++	}
++	if (getenv("PREVIEW_TEST_PARTIAL"))
++		len = MIN(len, 137);
++	while (offset < len) {
++		size_t n = MIN(sizeof chunk, len - offset);
++		for (i = 0; i < n; i++)
++			chunk[i] = pattern(offset + i);
++		for (i = 0; i < n;) {
++			ssize_t written = write(STDOUT_FILENO, chunk + i, n - i);
++			if (written < 0 && errno == EINTR)
++				continue;
++			if (written <= 0)
++				return 91;
++			i += written;
++		}
++		offset += n;
++	}
++	if (len == PREVIEWMAX + 1 && exit_status == 0)
++		sleep(5);
++	return exit_status;
++}
++
++static void
++check_guard(void)
++{
++	if (memcmp(storage + PREVIEWMAX + 1, guard, sizeof guard))
++		fail("buffer canary changed");
++}
++
++static void
++settle_child(pid_t pgid)
++{
++	/* Starts before previewstart, so the two-second budget includes teardown. */
++	int64_t end = case_started + CASE_GUARD_MS;
++
++	if (previewtime() >= end)
++		fail("cleanup observation began after its anchored deadline");
++
++	while (preview.pid && previewtime() < end) {
++		previewreap();
++		if (preview.pid)
++			usleep(1000);
++	}
++	if (preview.pid)
++		fail("child was not reaped before the case guard");
++	if (pgid > 0) {
++		while (kill(-pgid, 0) == 0 && previewtime() < end)
++			usleep(1000);
++		if (kill(-pgid, 0) == 0 || errno != ESRCH)
++			fail("owned process group remains alive");
++	}
++}
++
++static void
++start_case(int bytes, int exit_status)
++{
++	/*
++	 * Sanitizer runs require an uninstrumented helper because previewstart
++	 * redirects child stderr: PREVIEW_TEST_HELPER=/absolute/path/to/normal-probe
++	 * /absolute/path/to/sanitized-preview-boundary
++	 */
++	const char *helper_path = getenv("PREVIEW_TEST_HELPER");
++	char count[16], status[16];
++	active_pgid = 0;
++	observed_exit_status = -1;
++
++	if (!helper_path || helper_path[0] != '/' || !helper_path[1])
++		fail("PREVIEW_TEST_HELPER must name an absolute uninstrumented probe executable");
++	previewcmd = (char *)helper_path;
++	memset(&selected, 0, sizeof selected);
++	selected.text = "synthetic selected text with spaces";
++	sel = &selected;
++	memset(&preview, 0, sizeof preview);
++	preview.input = preview.output = -1;
++	preview.buf = (char *)storage;
++	memset(storage, 0xcc, sizeof storage);
++	memcpy(storage + PREVIEWMAX + 1, guard, sizeof guard);
++	snprintf(count, sizeof count, "%d", bytes);
++	snprintf(status, sizeof status, "%d", exit_status);
++	if (setenv("PREVIEW_TEST_BYTES", count, 1) < 0 ||
++	    setenv("PREVIEW_TEST_EXIT", status, 1) < 0)
++		fail("setenv failed");
++	preview.state = PreviewLoading;
++	preview.item = &selected;
++	preview.generation = preview.running = 1;
++	case_started = previewtime();
++	previewstart();
++	active_pgid = preview.pgid;
++	if (preview.state == PreviewUnavailable)
++		fail("previewstart failed");
++}
++
++static void
++run_transfer(void)
++{
++	int64_t end = case_started + CASE_GUARD_MS;
++	struct pollfd fds[2];
++
++	while (preview.deadline && previewtime() < end) {
++		previewstep();
++		if (!preview.deadline)
++			break;
++		fds[0] = (struct pollfd){ preview.input, POLLOUT, 0 };
++		fds[1] = (struct pollfd){ preview.output, POLLIN, 0 };
++		if (poll(fds, 2, 10) < 0 && errno != EINTR)
++			fail("poll failed");
++		if (preview.input >= 0 && (fds[0].revents & (POLLOUT | POLLHUP | POLLERR)))
++			previewwrite();
++		if (preview.output >= 0 && (fds[1].revents & (POLLIN | POLLHUP | POLLERR)))
++			previewread();
++		previewstep();
++		check_guard();
++	}
++	if (preview.deadline)
++		fail("internal 2-second case guard expired");
++}
++
++static void
++check_content(size_t expected, int final_state, int bytes, int exit_status)
++{
++	pid_t pgid = active_pgid;
++	unsigned char *want = malloc(expected ? expected : 1);
++	int actual_state = preview.state;
++	size_t i, actual_used = preview.used;
++
++	if (!want)
++		fail("allocation failed");
++	for (i = 0; i < expected; i++)
++		want[i] = pattern(i);
++	if (preview.state != final_state || preview.used != expected ||
++	    memcmp(preview.buf, want, expected) || preview.buf[expected] != '\0')
++		fail("unexpected state, retained length, bytes, or terminator");
++	settle_child(pgid);
++	printf("PASS preview-boundary: %d bytes, configured-exit %d, state %d, used %zu, hash %016" PRIx64
++	       " exact-content verified, %" PRId64 " ms\n", bytes, exit_status,
++	       actual_state, actual_used, hashbytes(want, expected), previewtime() - case_started);
++	if (observed_exit_status >= 0)
++		printf("PASS preview-boundary: observed child exit status %d before overflow read\n",
++		       observed_exit_status);
++	free(want);
++}
++
++static void
++run_content_case(int bytes, int exit_status, size_t expected, int state)
++{
++	start_case(bytes, exit_status);
++	run_transfer();
++	check_content(expected, state, bytes, exit_status);
++}
++static void
++run_overflow_nonzero(void)
++{
++	int64_t end;
++	struct pollfd fds[2];
++	siginfo_t info;
++
++	start_case(PREVIEWMAX + 1, 7);
++	end = case_started + CASE_GUARD_MS;
++	while (preview.used < PREVIEWMAX && preview.deadline && previewtime() < end) {
++		previewstep();
++		fds[0] = (struct pollfd){ preview.input, POLLOUT, 0 };
++		fds[1] = (struct pollfd){ preview.output, POLLIN, 0 };
++		if (poll(fds, 2, 10) < 0 && errno != EINTR)
++			fail("poll failed while filling preview buffer");
++		if (preview.input >= 0 && (fds[0].revents & (POLLOUT | POLLHUP | POLLERR)))
++			previewwrite();
++		if (preview.output >= 0 && (fds[1].revents & (POLLIN | POLLHUP | POLLERR)))
++			previewread();
++		check_guard();
++	}
++	if (preview.used != PREVIEWMAX || !preview.deadline)
++		fail("did not retain exactly the preview limit before overflow");
++	for (;;) {
++		info = (siginfo_t){0};
++		if (waitid(P_PID, preview.pid, &info, WEXITED | WNOHANG | WNOWAIT) < 0) {
++			if (errno == EINTR)
++				continue;
++			fail("waitid failed before overflow byte");
++		}
++		if (info.si_pid)
++			break;
++		if (previewtime() >= end)
++			fail("helper did not exit before overflow byte");
++		usleep(1000);
++	}
++	if (info.si_code != CLD_EXITED || info.si_status != 7)
++		fail("helper did not exit 7 before overflow byte");
++	observed_exit_status = info.si_status;
++	previewread();
++	if (preview.state != PreviewTruncated)
++		fail("overflow byte did not select Truncated after observed exit 7");
++	check_content(PREVIEWMAX, PreviewTruncated, PREVIEWMAX + 1, 7);
++}
++
++static void
++run_failure_case(int partial)
++{
++	pid_t pgid;
++
++	if (partial && setenv("PREVIEW_TEST_PARTIAL", "1", 1) < 0)
++		fail("setenv partial mode failed");
++	start_case(65536, 7);
++	run_transfer();
++	pgid = active_pgid;
++	if (preview.state != PreviewUnavailable || preview.used || preview.buf[0])
++		fail("nonzero exit did not clear preview");
++	check_guard();
++	settle_child(pgid);
++	printf("PASS preview-boundary: configured-exit 7, partial=%d, state %d, used %zu, content cleared, %" PRId64 " ms\n",
++	       partial, preview.state, preview.used, previewtime() - case_started);
++	unsetenv("PREVIEW_TEST_PARTIAL");
++}
++
++static void
++run_eof_alive(void)
++{
++	int64_t end;
++	struct pollfd fds[2];
++	pid_t pgid;
++
++	if (setenv("PREVIEW_TEST_EOF_ALIVE", "1", 1) < 0)
++		fail("setenv EOF mode failed");
++	start_case(1, 0);
++	end = case_started + CASE_GUARD_MS;
++	while (preview.output >= 0 && previewtime() < end) {
++		fds[0] = (struct pollfd){ preview.input, POLLOUT, 0 };
++		fds[1] = (struct pollfd){ preview.output, POLLIN, 0 };
++		if (poll(fds, 2, 10) < 0 && errno != EINTR)
++			fail("poll failed");
++		if (preview.input >= 0 && (fds[0].revents & (POLLOUT | POLLHUP | POLLERR)))
++			previewwrite();
++		if (preview.output >= 0 && (fds[1].revents & (POLLIN | POLLHUP | POLLERR)))
++			previewread();
++		previewstep();
++	}
++	if (preview.output >= 0 || preview.state != PreviewLoading || !preview.deadline)
++		fail("stdout EOF did not remain Loading while child lived");
++	while (preview.deadline && previewtime() < end) {
++		previewstep();
++		usleep(1000);
++	}
++	pgid = active_pgid;
++	if (preview.state != PreviewTimeout || preview.used || preview.buf[0])
++		fail("stdout EOF did not resolve to cleared Timeout");
++	end = previewtime() - case_started;
++	if (end < 950 || end > 1200)
++		fail("stdout EOF timeout was outside the 1000 ms deadline tolerance");
++	check_guard();
++	settle_child(pgid);
++	printf("PASS preview-boundary: stdout EOF stayed Loading until Timeout, state %d, used %zu, %" PRId64 " ms\n",
++	       preview.state, preview.used, previewtime() - case_started);
++	unsetenv("PREVIEW_TEST_EOF_ALIVE");
++}
++
++int
++main(void)
++{
++	if (getenv("PREVIEW_TEST_BYTES"))
++		return helper();
++	signal(SIGPIPE, SIG_IGN);
++	signal(SIGCHLD, SIG_DFL);
++	run_content_case(65535, 0, 65535, PreviewReady);
++	run_content_case(65536, 0, 65536, PreviewReady);
++	run_content_case(65537, 0, 65536, PreviewTruncated);
++	run_overflow_nonzero();
++	run_failure_case(1);
++	run_failure_case(0);
++	run_eof_alive();
++	return 0;
++}
+--- a/README
++++ b/README
+@@ -78,10 +78,15 @@
+ 
+ `python3 tests/preview-checkpoint.py --baseline /absolute/baseline/dmenu
+ --binary /absolute/new/dmenu --output /tmp/preview-results --isolated-display`
+-(one command, with DISPLAY set to the owned isolated server) runs synthetic
+-executable helpers and actual keyboard/pixel/resource checks. See `--help`
+-for focused sanitizer runs. Xvfb/Xephyr, xdotool, xwininfo and ImageMagick are
+-verification tools, not application dependencies.
++(one command, with DISPLAY set to the owned isolated server) requires an empty
++output directory. It confirms at least 200 actual helper starts, measures active
++and settled resources, samples intermediate stale-result frames, and exercises
++deadline/navigation/cancellation under bounded Expose traffic. Per-process stderr
++and cleanup records are retained in OUTPUT/diagnostics, including unexpected
++termination and forced cleanup. Sanitizer diagnostics fail the run; partial
++reports are retained on failure. See `--help` for focused sanitizer runs.
++Xvfb/Xephyr, xdotool, xwininfo and ImageMagick are verification tools, not
++application dependencies.
+ 
+ The older highlight check assumes default colors; row positions come from
+ actual geometry. Preview-content checks use same-run pixel variation rather
+@@ -95,7 +100,44 @@
+ 
+ Async-checkpoint source delta, screenshots and executable verification results
+ are retained under `openspec/changes/add-text-preview/evidence/async/`.
+-Known baseline sanitizer limitations are recorded there: fuzzy filtering triggers
+-an existing ASan heap-buffer-overflow, and baseline/current token-mode exits
+-report Fontconfig leaks. Do not suppress those findings or claim an ASan-clean
+-build. `--helpers-only --token-mode` supports focused UBSan lifecycle checks.
++Post-review harness corrections and fresh verification evidence are retained
++under `openspec/changes/add-text-preview/evidence/async-review/`.
++Known baseline sanitizer limitations are recorded in those directories: fuzzy filtering triggers
++an existing ASan heap-buffer-overflow (also detected by full UBSan), and
++baseline/current token-mode exits report Fontconfig leaks. Do not suppress those
++findings or claim a sanitizer-clean full build. `--helpers-only --token-mode`
++supports focused lifecycle checks without the unrelated fuzzy path.
++
++Byte-exact collection checks use `tests/preview-boundary.c`, a test-only
++translation unit including the real private lifecycle functions from dmenu.c.
++It checks retained bytes/length/terminator/canary, terminal precedence and
++stdout-EOF timeout without opening X11. Build it in a disposable source copy:
++
++    mkdir "$work/tests"
++    cp tests/preview-boundary.c "$work/tests/"
++    make -C "$work" -f Makefile -f - CC='cc -Wextra' preview-boundary <<'EOF'
++    preview-boundary: tests/preview-boundary.c dmenu.c config.h drw.o util.o
++    	$(CC) $(CFLAGS) -o $@ $< drw.o util.o $(LDFLAGS)
++    EOF
++    PREVIEW_TEST_HELPER="$work/preview-boundary" "$work/preview-boundary"
++
++Use separate fresh copies for normal, UBSan and ASan builds; sanitizer compiler
++flags must be present during compilation and linking. PREVIEW_TEST_HELPER must
++always name the normal, uninstrumented probe, even for a sanitized parent: the
++production protocol discards helper stderr. Parent diagnostics remain captured.
++The native probe can run with leak detection enabled.
++
++For complete token-mode ASan lifecycle checks, `ASAN_OPTIONS=detect_leaks=0`
++isolates invalid accesses from the known Fontconfig exit leak; this is not a
++leak-clean claim. Run separate baseline/current normal-exit checks with
++`detect_leaks=1` and retain their stderr. Forced SIGKILL cannot perform a final
++leak scan. Do not suppress the unrelated fuzzy overflow or count the token-mode
++run as fuzzy-path sanitizer coverage.
++
++Termination observation uses an earlier conservative bound (key injection start,
++or helper startup before completion/timeout), never observer entry. Driver
++delivery time is included, so the two-second budget is stricter than a budget
++from the actual SIGKILL syscall. Late scans fail rather than establish absence
++retroactively. Stale-frame sampling records its maximum gap; shorter flashes
++remain outside the observation resolution. Fairness tests reject failed/slow
++injectors or X-server round trips as infrastructure errors.
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -105,6 +105,12 @@
+ with DISPLAY set only to an owned disposable Xvfb/Xephyr server. Tests use xdotool,
+ xwininfo and ImageMagick; never point them at real history or the working desktop.
+ Do not install this checkpoint; full sanitization/wrapping/scrolling remain pending.
++The GUI harness requires an empty output directory, confirms at least 200 real
++helper starts, and retains stderr on every outcome. Byte-exact collection uses
++`tests/preview-boundary.c`, including the real private lifecycle functions;
++build/run commands are in README. Its producer must be the uninstrumented
++normal probe even when the parent is sanitized, because helper stderr is discarded.
++Record leak-disabled ASan coverage separately from leak-enabled exit diagnostics.
+ 
+ 
+ Keep CLI/help/manual and compile-time defaults consistent with behavior changes.
+--- a/openspec/changes/add-text-preview/tasks.md
++++ b/openspec/changes/add-text-preview/tasks.md
+@@ -78,3 +78,25 @@
+ - Persistent synthetic real-helper screenshots are `evidence/async/success.png` and `truncated.png`, captured on isolated Xvfb with 18-point text and visually inspected. Source delta against the approved GUI checkpoint is `evidence/async/source.diff`; safe disposable build/helper instructions are in README. The installed binary, local configuration, existing build outputs and earlier GUI evidence are protected by SHA256 checks. No installation or real clipboard interaction occurred.
+ - A targeted independent static lifecycle review found no material defects, but was not substituted for executable checks. There is no architectural expansion beyond the approved single-group design. Temporary newline clipping and the fixed status footer are explicit checkpoint presentation limits; the next authorized action is independent review, not task 4.1.
+ - An additional strict ASan helper-only/token-mode run reached 23 PASS reports, including empty/error/timeout, descriptor/privacy, descendant and all exact-limit/overflow cases, then stopped with exit 1 on the same 8839-byte/128-allocation Fontconfig leak at the first normal Return. It is a partial diagnostic run, not a passing suite; see `evidence/async/asan.log` and `asan-result.json`. No sanitizer finding was suppressed.
++
++## Post-review asynchronous checkpoint test corrections
++
++- This is a test-harness correction checkpoint, not authorization for group 4 or later. Application source, configuration, installed binaries and earlier evidence are unchanged. Implementation status remains 10/21; no additional implementation task is checked off.
++- The earlier repeated-request counts and observer-entry-relative cleanup checks are superseded as acceptance evidence. Rapid key injection was not proof of helper execution. Earlier logs are preserved as historical results, not silently reinterpreted as 200-start coverage.
++- `tests/preview-checkpoint.py` now awaits real helper startup, confirms a live direct child for each active resource sample, awaits old-child reaping while the menu remains alive, and observes every cancelled group within its original bound. An explicit minimum of 200 distinct helper starts is required. The final accepted runs each recorded 201 starts during 200 alternating selection changes, 200 active resource samples, at most one direct child, no settled children, five active FDs and four settled FDs equal to the independently measured no-preview baseline. FD growth is bounded independently of the final count.
++
++| Accepted run | Reports / exit | Confirmed stress starts / all fixture starts | RSS pages, all active samples |
++| --- | --- | --- | --- |
++| Normal, full baseline comparison | 90 / 0 | 201 / 259 | 2388–2388 |
++| UBSan, complete helper-only `-F` | 42 / 0 | 201 / 245 | 2860–2860 |
++| ASan/UBSan, complete helper-only `-F`, leak detection disabled | 42 / 0 | 201 / 245 | 6807–7330 |
++
++- Raw samples, helper PID/start records, screenshots and every process stderr/index are retained in `evidence/async-review/{normal,ubsan,asan}-artifacts.tar.gz`; exact commands and machine-readable results are in `summary.json` and the corresponding result JSON files. RSS uses a ten-sample warmup and a declared delta budget of 64 pages normally, or 1024 pages for ASan allocator quarantine; the raw warmup samples are not discarded from evidence. This is finite-workload stability/bounded-growth evidence, not proof for every future workload.
++- The two-second termination deadline is now anchored before key injection or at helper startup before completion/timeout, never at observer entry. These are conservative earlier bounds, so driver delivery and scanning reduce the available budget rather than extend it. Late-starting or late-finishing observations fail. Each accepted run has 210 timely group observations, including all 201 stress groups; no live members or zombies were observed. The largest conservative-bound-to-observation interval across these runs was 1.217 seconds. Exact SIGKILL dispatch timestamps are not inferred from those bounds.
++- `tests/preview-boundary.c` includes the actual private production lifecycle functions without adding a production hook. Normal, UBSan and ASan each completed eight native reports with leak detection enabled: 65535/65536-byte successes retain byte-exact binary patterns, the two 65537-byte overflow cases retain exactly 65536 bytes, and the terminator/canary remain intact. The exit-0 overflow producer stays alive until teardown; the exit-7 case explicitly observes exit 7 before reading the extra byte. Partial 137-byte and exact-cap nonzero exits clear the result as Unavailable. EOF while alive remains Loading and becomes a cleared Timeout at 1001 ms in the normal probe, within the explicit 950–1200 ms tolerance. Sanitized parents always use the uninstrumented normal producer because production intentionally discards helper stderr.
++- Fairness uses a separate bounded-rate Expose producer, an atomic first-event/XSync handshake, finite event/time limits and independently delivered keyboard events. A controlled continuous stdout producer stays below the byte cap so its deadline, not overflow, terminates it. Normal/UBSan/ASan timeout observations were 0.971/0.976/0.979 seconds after the post-exec Python startup marker, under 97/97/99 Expose events. New helper starts after navigation were 84/77/85 ms; Escape completion was 68/66/68 ms, including driver overhead. XSync round trips stayed below 0.320 ms. Slow/failed injectors and generators are infrastructure failures, not application results. Expected BadWindow after Escape is explicitly armed before window destruction; unrelated X errors still fail.
++- Stale-result checks start sampling before asynchronous key delivery, observe the selected-row highlight transition, and continue across the cancelled helper's would-complete time until the delayed newest output appears. Every accepted run retained 41 intermediate samples with only allowed Loading/current-blue content and no forbidden red/green content. Maximum sample gaps were 24.4/25.2/25.7 ms respectively; shorter flashes are not excluded by this sampling evidence. The final deadline and latest-selection screenshots were visually inspected.
++- Stderr capture is performed for successful, unexpected-exit and forcibly killed instrumented processes, including CLI checks; failures retain reports. Two temporary intentional-ASan-UAF controls proved detection/preservation for an unexpected exit 0 and forced SIGKILL. Their reports are segregated in `capture-controls.tar.gz` and are not application findings. The final accepted GUI runs captured 109/55/55 process stderr records and found no sanitizer diagnostics in those scoped runs.
++- Full UBSan baseline comparison is NOT passing: it stopped after five reports at the unchanged known `fuzzymatch()` out-of-bounds load. The diagnostic and all process stderr are retained in `ubsan-full-known-fuzzy*`; it is partial coverage, not folded into the 42-report helper result. No fuzzy repair was attempted. Separate leak-enabled baseline/current normal-exit checks both report the existing Fontconfig leak, 8839 bytes in 128 allocations; full stderr is retained. Leak-disabled GUI ASan is not a leak-clean or fuzzy-path sanitizer claim; forced SIGKILL cannot run a final leak scan. Native probes retained leak detection enabled.
++- Warning-enabled disposable builds succeeded with the same four pre-existing application signedness warnings; the native include seam repeats those warnings without a new warning category. The documented native build/run command was independently exercised and produced eight reports. No new application implementation defect was confirmed; corrected failures were harness timing/handshake/synchronization defects. Exact session diff and protected-file verification are retained with this evidence. No installation, real clipboard/history, daemon or Xmonad changes occurred.
++- Superseded failed harness/infrastructure attempts are retained separately in `superseded-harness-failures.tar.gz` and `superseded-attempts.json`; they are not passing coverage. Strict OpenSpec validation and the unchanged 10/21 progress are recorded in `validation.log`. `changed-files.json` and `source.diff` identify the exact correction-session delta; `preservation.json` records the 33 protected-file matches.

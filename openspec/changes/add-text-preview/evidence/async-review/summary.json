@@ -1,0 +1,190 @@
+{
+  "scope": "Test-harness corrections only; no application source changes",
+  "runs": {
+    "normal": {
+      "name": "normal",
+      "command": [
+        "/usr/bin/python3",
+        "/home/avo/Projects/private/dmenu/tests/preview-checkpoint.py",
+        "--binary",
+        "/tmp/dmenu-review-corrections-fjivyc9f/normal/dmenu",
+        "--output",
+        "/tmp/dmenu-review-corrections-fjivyc9f/normal-results-113810148259752",
+        "--isolated-display",
+        "--baseline",
+        "/tmp/dmenu-review-corrections-fjivyc9f/baseline/dmenu"
+      ],
+      "cwd": "/home/avo/Projects/private/dmenu",
+      "exit": 0,
+      "elapsed": 60.070603704996756,
+      "pass_reports": 90,
+      "sanitizer_environment": {
+        "UBSAN_OPTIONS": "halt_on_error=1:print_stacktrace=1"
+      },
+      "confirmed_repeated_starts": 201,
+      "all_confirmed_fixture_starts": 259,
+      "active_resource_samples": 200,
+      "rss_pages_range": [
+        2388,
+        2388
+      ],
+      "rss_budget_pages": 64,
+      "warmup_samples": 10,
+      "active_fd_range": [
+        5,
+        5
+      ],
+      "settled_fds": 4,
+      "no_preview_fd_baseline": 4,
+      "max_direct_children": 1,
+      "timely_group_observations": 210,
+      "max_conservative_anchor_to_observation_seconds": 1.1890879900020082,
+      "observed_zombie_groups": 0,
+      "fairness_timeout_seconds_after_python_start": 0.9711215120041743,
+      "fairness_timeout_events": 97,
+      "fairness_navigation_seconds": 0.0678406209917739,
+      "fairness_next_helper_start_seconds": 0.08418321699718945,
+      "fairness_escape_seconds": 0.06831698599853553,
+      "fairness_navigation_injector_seconds": 0.017655610005022027,
+      "fairness_escape_injector_seconds": 0.017917032993864268,
+      "fairness_cancel_events": 11,
+      "max_xsync_rtt_seconds": 0.00031941400084178895,
+      "stale_samples": 41,
+      "stale_max_sample_gap_seconds": 0.024315446004038677,
+      "diagnostic_process_count": 109,
+      "forced_cleanup_count": 48,
+      "sanitizer_findings_in_captured_process_stderr": 0
+    },
+    "ubsan": {
+      "name": "ubsan",
+      "command": [
+        "/usr/bin/python3",
+        "/home/avo/Projects/private/dmenu/tests/preview-checkpoint.py",
+        "--binary",
+        "/tmp/dmenu-review-corrections-fjivyc9f/ubsan/dmenu",
+        "--output",
+        "/tmp/dmenu-review-corrections-fjivyc9f/ubsan-results-113919640945388",
+        "--isolated-display",
+        "--helpers-only",
+        "--token-mode"
+      ],
+      "cwd": "/home/avo/Projects/private/dmenu",
+      "exit": 0,
+      "elapsed": 45.70038447600382,
+      "pass_reports": 42,
+      "sanitizer_environment": {
+        "UBSAN_OPTIONS": "halt_on_error=1:print_stacktrace=1"
+      },
+      "confirmed_repeated_starts": 201,
+      "all_confirmed_fixture_starts": 245,
+      "active_resource_samples": 200,
+      "rss_pages_range": [
+        2860,
+        2860
+      ],
+      "rss_budget_pages": 64,
+      "warmup_samples": 10,
+      "active_fd_range": [
+        5,
+        5
+      ],
+      "settled_fds": 4,
+      "no_preview_fd_baseline": 4,
+      "max_direct_children": 1,
+      "timely_group_observations": 210,
+      "max_conservative_anchor_to_observation_seconds": 1.1897501700004796,
+      "observed_zombie_groups": 0,
+      "fairness_timeout_seconds_after_python_start": 0.9760456939984579,
+      "fairness_timeout_events": 97,
+      "fairness_navigation_seconds": 0.06617696699686348,
+      "fairness_next_helper_start_seconds": 0.07714293598837685,
+      "fairness_escape_seconds": 0.06646951200673357,
+      "fairness_navigation_injector_seconds": 0.01608092999958899,
+      "fairness_escape_injector_seconds": 0.016217948999837972,
+      "fairness_cancel_events": 10,
+      "max_xsync_rtt_seconds": 0.00024027700419537723,
+      "stale_samples": 41,
+      "stale_max_sample_gap_seconds": 0.02519636099168565,
+      "diagnostic_process_count": 55,
+      "forced_cleanup_count": 37,
+      "sanitizer_findings_in_captured_process_stderr": 0
+    },
+    "asan": {
+      "name": "asan",
+      "command": [
+        "/usr/bin/python3",
+        "/home/avo/Projects/private/dmenu/tests/preview-checkpoint.py",
+        "--binary",
+        "/tmp/dmenu-review-corrections-fjivyc9f/asan/dmenu",
+        "--output",
+        "/tmp/dmenu-review-corrections-fjivyc9f/asan-results-113965389740792",
+        "--isolated-display",
+        "--helpers-only",
+        "--token-mode"
+      ],
+      "cwd": "/home/avo/Projects/private/dmenu",
+      "exit": 0,
+      "elapsed": 47.01315392399556,
+      "pass_reports": 42,
+      "sanitizer_environment": {
+        "UBSAN_OPTIONS": "halt_on_error=1:print_stacktrace=1",
+        "ASAN_OPTIONS": "detect_leaks=0:halt_on_error=1"
+      },
+      "confirmed_repeated_starts": 201,
+      "all_confirmed_fixture_starts": 245,
+      "active_resource_samples": 200,
+      "rss_pages_range": [
+        6807,
+        7330
+      ],
+      "rss_budget_pages": 1024,
+      "warmup_samples": 10,
+      "active_fd_range": [
+        5,
+        5
+      ],
+      "settled_fds": 4,
+      "no_preview_fd_baseline": 4,
+      "max_direct_children": 1,
+      "timely_group_observations": 210,
+      "max_conservative_anchor_to_observation_seconds": 1.2161599690007279,
+      "observed_zombie_groups": 0,
+      "fairness_timeout_seconds_after_python_start": 0.9790425209939713,
+      "fairness_timeout_events": 99,
+      "fairness_navigation_seconds": 0.06758067199552897,
+      "fairness_next_helper_start_seconds": 0.08527005299401935,
+      "fairness_escape_seconds": 0.06823510900721885,
+      "fairness_navigation_injector_seconds": 0.017397360992617905,
+      "fairness_escape_injector_seconds": 0.018089459990733303,
+      "fairness_cancel_events": 11,
+      "max_xsync_rtt_seconds": 0.0002701929915929213,
+      "stale_samples": 41,
+      "stale_max_sample_gap_seconds": 0.025690102993394248,
+      "diagnostic_process_count": 55,
+      "forced_cleanup_count": 37,
+      "sanitizer_findings_in_captured_process_stderr": 0
+    }
+  },
+  "full_ubsan": {
+    "exit": 1,
+    "pass_reports": 5,
+    "coverage": "Partial: stopped at the unchanged known fuzzymatch out-of-bounds load; not a passing suite"
+  },
+  "sanitizer_limits": {
+    "asan_gui": "Complete helper-only token-mode run with detect_leaks=0; no fuzzy-path or leak-clean claim",
+    "native_probe": "All cases passed under normal, UBSan and ASan with detect_leaks=1; producer was uninstrumented",
+    "leaks": "Separate baseline/current normal-exit runs use detect_leaks=1; both report 8839 bytes in 128 Fontconfig allocations",
+    "capture_controls": "Intentional temporary UAF verifies diagnostic rejection on unexpected exit 0 and forced SIGKILL; not an application defect"
+  },
+  "observation_limits": {
+    "groups": "Two-second deadlines start at an earlier conservative key-injection/helper-start bound; driver and scan latency make this stricter than dispatch-relative timing",
+    "stale": "No forbidden content in sampled frames; shorter-than-recorded-gap flashes are not excluded",
+    "fairness": "Python helper timestamps follow exec; timeout figures are not exact fork-to-SIGKILL measurements",
+    "memory": "Observed finite-workload RSS stability/bounds, not a proof of all future workloads; ASan quarantine has a separately declared budget"
+  },
+  "source_sha256": {
+    "dmenu.c": "165577a06e7f990e08fd067fab28e332885b228b28286b44caa8ac1a42d3b9a7",
+    "tests/preview-checkpoint.py": "a41ba76e9985aa8a6911d08e0276de08249babbf32b309eb9aedcb6060d99d4f",
+    "tests/preview-boundary.c": "2cc5deedd85c689c0ffaad364cedf75055aa41d6c7399249ad4ee15ce4d09e68"
+  }
+}

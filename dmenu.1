@@ -10,6 +10,8 @@ dmenu \- dynamic menu
 .IR monitor ]
 .RB [ \-p
 .IR prompt ]
+.RB [ \-P
+.IR /helper ]
 .RB [ \-fn
 .IR font ]
 .RB [ \-nb
@@ -63,6 +65,45 @@ from 0.
 .TP
 .BI \-p " prompt"
 defines the prompt to be displayed to the left of the input field.
+.TP
+.BI \-P " /helper"
+enables asynchronous text previews from the absolute executable path supplied,
+requiring an explicit positive decimal
+.BR \-l .
+The input spans the window above an approximately 40% item column and 60%
+preview column. Body height does not shrink with the item count; rows are
+clamped to the available screen or embedding window. Unreadable dimensions
+are rejected.
+.IP
+The helper is executed directly, without a shell or additional arguments.
+Its stdin receives the unchanged selected label followed by one newline and
+then EOF. Its stdout supplies preview text; stderr is discarded.
+Treat the helper as trusted local code, not a sandbox. Labels and preview
+data are never placed in command arguments, environment variables or diagnostics.
+.IP
+Selection changes debounce for 40 milliseconds and cancel obsolete work.
+The 1000 millisecond monotonic deadline covers execution, stdin delivery,
+stdout collection and process completion. Successful output is published only
+after stdout EOF and exit status 0. Empty output shows No preview; execution
+errors and nonzero exits show Unavailable; deadline expiry shows Timed out.
+.IP
+The output limit is 65536 bytes. Exactly that many bytes completed successfully
+are not truncated. Detecting an additional byte retains the prefix and shows
+Truncated even after the menu kills the producer. Loading and terminal states
+occupy a fixed footer row; text uses the preceding body rows. With one body
+row, a successful preview uses that row and other states display their status.
+.IP
+Only the latest selected item owns a result. Cancellation sends SIGKILL to the
+owned helper group and closes pipes without blocking for exit. Cooperative
+descendants are included; descendants intentionally leaving the group are not
+contained. Keyboard release and menu exit never wait for helper termination.
+.IP
+This checkpoint clips lines and shows only the visible prefix. Final text
+sanitization, soft wrapping, scrolling and clipboard integration are not yet
+implemented. Enter still outputs the original label, never preview content.
+Without
+.BR \-P ,
+the existing menu execution and appearance remain unchanged.
 .TP
 .BI \-fn " font"
 defines the font or font set used.

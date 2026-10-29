@@ -1,0 +1,536 @@
+{
+  "scope": "GUI verification of integration of reviewed fuzzy bounds fix",
+  "source_ids": {
+    "original_baseline": "787050237a1b357e53efbec9ef5cc7870a51d041",
+    "corrected_pre_preview_sanitized_baseline": "32fafa2ce7daf1a683e3039bbaf7a9007823e986",
+    "current": "trial integration"
+  },
+  "configuration": "All source copies use copied trial/config.h. Main checkout and trial sources were not edited.",
+  "xvfb": {
+    "binary": "/tmp/dmenu-preview-checkpoint-RBbWFs/xvfb/usr/bin/Xvfb",
+    "command": [
+      "Xvfb",
+      "-displayfd",
+      "FD",
+      "-screen",
+      "0",
+      "1280x900x24",
+      "-nolisten",
+      "tcp",
+      "-noreset"
+    ],
+    "stderr": "recovery-xvfb.log (regular file)",
+    "probe_count": 5,
+    "probe_exit_codes": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  "builds": {
+    "compiler": "gcc",
+    "compile_flags": "-std=c99 -pedantic -g -O1 -fno-omit-frame-pointer -Wall -Wextra; sanitizer flags -fsanitize=address,undefined or -fsanitize=undefined",
+    "link_flags": "same sanitizer flags and -lX11 -lXinerama -lfontconfig -lXft -lm",
+    "logs": "/tmp/dmenu-fuzzy-integration-mclmbvjk/gui/logs",
+    "warning_counts_by_build": {
+      "compile-corrected-baseline-ubsan.stderr": {
+        "count": 4,
+        "categories": [
+          "operand of \u2018?:\u2019 changes signedness from \u2018int\u2019 to \u2018unsigned int\u2019 due to unsignedness of other operand",
+          "operand of \u2018?:\u2019 changes signedness from \u2018int\u2019 to \u2018unsigned int\u2019 due to unsignedness of other operand",
+          "comparison of integer expressions of different signedness: \u2018unsigned int\u2019 and \u2018int\u2019",
+          "comparison of integer expressions of different signedness: \u2018int\u2019 and \u2018unsigned int\u2019"
+        ]
+      },
+      "compile-current-asan-ubsan.stderr": {
+        "count": 4,
+        "categories": [
+          "operand of \u2018?:\u2019 changes signedness from \u2018int\u2019 to \u2018unsigned int\u2019 due to unsignedness of other operand",
+          "operand of \u2018?:\u2019 changes signedness from \u2018int\u2019 to \u2018unsigned int\u2019 due to unsignedness of other operand",
+          "comparison of integer expressions of different signedness: \u2018unsigned int\u2019 and \u2018int\u2019",
+          "comparison of integer expressions of different signedness: \u2018int\u2019 and \u2018unsigned int\u2019"
+        ]
+      },
+      "compile-current-ubsan.stderr": {
+        "count": 4,
+        "categories": [
+          "operand of \u2018?:\u2019 changes signedness from \u2018int\u2019 to \u2018unsigned int\u2019 due to unsignedness of other operand",
+          "operand of \u2018?:\u2019 changes signedness from \u2018int\u2019 to \u2018unsigned int\u2019 due to unsignedness of other operand",
+          "comparison of integer expressions of different signedness: \u2018unsigned int\u2019 and \u2018int\u2019",
+          "comparison of integer expressions of different signedness: \u2018int\u2019 and \u2018unsigned int\u2019"
+        ]
+      },
+      "compile-corrected-baseline-asan-ubsan.stderr": {
+        "count": 4,
+        "categories": [
+          "operand of \u2018?:\u2019 changes signedness from \u2018int\u2019 to \u2018unsigned int\u2019 due to unsignedness of other operand",
+          "operand of \u2018?:\u2019 changes signedness from \u2018int\u2019 to \u2018unsigned int\u2019 due to unsignedness of other operand",
+          "comparison of integer expressions of different signedness: \u2018unsigned int\u2019 and \u2018int\u2019",
+          "comparison of integer expressions of different signedness: \u2018int\u2019 and \u2018unsigned int\u2019"
+        ]
+      },
+      "compile-current-normal.stderr": {
+        "count": 4,
+        "categories": [
+          "operand of \u2018?:\u2019 changes signedness from \u2018int\u2019 to \u2018unsigned int\u2019 due to unsignedness of other operand",
+          "operand of \u2018?:\u2019 changes signedness from \u2018int\u2019 to \u2018unsigned int\u2019 due to unsignedness of other operand",
+          "comparison of integer expressions of different signedness: \u2018unsigned int\u2019 and \u2018int\u2019",
+          "comparison of integer expressions of different signedness: \u2018int\u2019 and \u2018unsigned int\u2019"
+        ]
+      },
+      "compile-original-baseline-normal.stderr": {
+        "count": 4,
+        "categories": [
+          "operand of \u2018?:\u2019 changes signedness from \u2018int\u2019 to \u2018unsigned int\u2019 due to unsignedness of other operand",
+          "operand of \u2018?:\u2019 changes signedness from \u2018int\u2019 to \u2018unsigned int\u2019 due to unsignedness of other operand",
+          "comparison of integer expressions of different signedness: \u2018unsigned int\u2019 and \u2018int\u2019",
+          "comparison of integer expressions of different signedness: \u2018int\u2019 and \u2018unsigned int\u2019"
+        ]
+      }
+    },
+    "warning_analysis": "Four pre-existing -Wsign-compare warning sites; baseline lines 93,96,167,796 and integrated lines 391,394,504,1162 reflect line shifts. No new warning category observed."
+  },
+  "runs": {
+    "normal-full": {
+      "report": "/tmp/dmenu-fuzzy-integration-mclmbvjk/gui/runs/recovery-normal-full/report.txt",
+      "results_json": "/tmp/dmenu-fuzzy-integration-mclmbvjk/gui/runs/recovery-normal-full/results.json",
+      "pass_count": 90,
+      "fail_count": 0,
+      "reported_helper_starts": 201,
+      "synthetic_helper_invocations": 15,
+      "process_diagnostic_records": 109,
+      "sanitizer_diagnostic_count": 0,
+      "lifecycle_resource_teardown_results": [
+        "PASS helper-repeated-request-resources: unique_starts=201 active_samples=200 warmup=10 asan=False RSS_budget=64pages post-warmup=2386..2387 fd_count=4..5; raw samples=repeated-resource-samples.json",
+        "PASS helper-repeated-group-cleanup: 201 recorded starts; every group observed within its cancellation bound",
+        "PASS no-preview-process-sampling: samples=12 rss_pages=2352..2352 fd_count=4..4 cpu_ticks=2..2 children=none observed",
+        "PASS helper-window-destruction: menu exited with status 1 after parent destruction",
+        "PASS helper-window-destruction-group: no live group members; zombies=[]"
+      ],
+      "group_observations_file": "/tmp/dmenu-fuzzy-integration-mclmbvjk/gui/runs/recovery-normal-full/group-observations.json",
+      "screenshots": 59
+    },
+    "normal-helpers-fuzzy": {
+      "report": "/tmp/dmenu-fuzzy-integration-mclmbvjk/gui/runs/recovery-normal-helpers-fuzzy/report.txt",
+      "results_json": "/tmp/dmenu-fuzzy-integration-mclmbvjk/gui/runs/recovery-normal-helpers-fuzzy/results.json",
+      "pass_count": 42,
+      "fail_count": 0,
+      "reported_helper_starts": 201,
+      "synthetic_helper_invocations": 0,
+      "process_diagnostic_records": 55,
+      "sanitizer_diagnostic_count": 0,
+      "lifecycle_resource_teardown_results": [
+        "PASS helper-repeated-request-resources: unique_starts=201 active_samples=200 warmup=10 asan=False RSS_budget=64pages post-warmup=2379..2380 fd_count=4..5; raw samples=repeated-resource-samples.json",
+        "PASS helper-repeated-group-cleanup: 201 recorded starts; every group observed within its cancellation bound",
+        "PASS no-preview-process-sampling: samples=12 rss_pages=2358..2358 fd_count=4..4 cpu_ticks=2..2 children=none observed",
+        "PASS helper-window-destruction: menu exited with status 1 after parent destruction",
+        "PASS helper-window-destruction-group: no live group members; zombies=[]"
+      ],
+      "group_observations_file": "/tmp/dmenu-fuzzy-integration-mclmbvjk/gui/runs/recovery-normal-helpers-fuzzy/group-observations.json",
+      "screenshots": 37
+    },
+    "normal-helpers-token": {
+      "report": "/tmp/dmenu-fuzzy-integration-mclmbvjk/gui/runs/recovery-normal-helpers-token/report.txt",
+      "results_json": "/tmp/dmenu-fuzzy-integration-mclmbvjk/gui/runs/recovery-normal-helpers-token/results.json",
+      "pass_count": 42,
+      "fail_count": 0,
+      "reported_helper_starts": 201,
+      "synthetic_helper_invocations": 0,
+      "process_diagnostic_records": 55,
+      "sanitizer_diagnostic_count": 0,
+      "lifecycle_resource_teardown_results": [
+        "PASS helper-repeated-request-resources: unique_starts=201 active_samples=200 warmup=10 asan=False RSS_budget=64pages post-warmup=2410..2427 fd_count=4..5; raw samples=repeated-resource-samples.json",
+        "PASS helper-repeated-group-cleanup: 201 recorded starts; every group observed within its cancellation bound",
+        "PASS no-preview-process-sampling: samples=12 rss_pages=2353..2353 fd_count=4..4 cpu_ticks=2..2 children=none observed",
+        "PASS helper-window-destruction: menu exited with status 1 after parent destruction",
+        "PASS helper-window-destruction-group: no live group members; zombies=[]"
+      ],
+      "group_observations_file": "/tmp/dmenu-fuzzy-integration-mclmbvjk/gui/runs/recovery-normal-helpers-token/group-observations.json",
+      "screenshots": 37
+    },
+    "asan-ubsan-full": {
+      "report": "/tmp/dmenu-fuzzy-integration-mclmbvjk/gui/runs/recovery-asan-ubsan-full/report.txt",
+      "results_json": "/tmp/dmenu-fuzzy-integration-mclmbvjk/gui/runs/recovery-asan-ubsan-full/results.json",
+      "pass_count": 90,
+      "fail_count": 0,
+      "reported_helper_starts": 201,
+      "synthetic_helper_invocations": 14,
+      "process_diagnostic_records": 109,
+      "sanitizer_diagnostic_count": 0,
+      "lifecycle_resource_teardown_results": [
+        "PASS helper-repeated-request-resources: unique_starts=201 active_samples=200 warmup=10 asan=True RSS_budget=1024pages post-warmup=6874..7376 fd_count=4..5; raw samples=repeated-resource-samples.json",
+        "PASS helper-repeated-group-cleanup: 201 recorded starts; every group observed within its cancellation bound",
+        "PASS no-preview-process-sampling: samples=12 rss_pages=6749..6749 fd_count=4..4 cpu_ticks=5..5 children=none observed",
+        "PASS helper-window-destruction: menu exited with status 1 after parent destruction",
+        "PASS helper-window-destruction-group: no live group members; zombies=[]"
+      ],
+      "group_observations_file": "/tmp/dmenu-fuzzy-integration-mclmbvjk/gui/runs/recovery-asan-ubsan-full/group-observations.json",
+      "screenshots": 59
+    },
+    "asan-ubsan-helpers-token": {
+      "report": "/tmp/dmenu-fuzzy-integration-mclmbvjk/gui/runs/recovery-asan-ubsan-helpers-token/report.txt",
+      "results_json": "/tmp/dmenu-fuzzy-integration-mclmbvjk/gui/runs/recovery-asan-ubsan-helpers-token/results.json",
+      "pass_count": 42,
+      "fail_count": 0,
+      "reported_helper_starts": 201,
+      "synthetic_helper_invocations": 0,
+      "process_diagnostic_records": 55,
+      "sanitizer_diagnostic_count": 0,
+      "lifecycle_resource_teardown_results": [
+        "PASS helper-repeated-request-resources: unique_starts=201 active_samples=200 warmup=10 asan=True RSS_budget=1024pages post-warmup=6869..7384 fd_count=4..5; raw samples=repeated-resource-samples.json",
+        "PASS helper-repeated-group-cleanup: 201 recorded starts; every group observed within its cancellation bound",
+        "PASS no-preview-process-sampling: samples=12 rss_pages=6738..6738 fd_count=4..4 cpu_ticks=5..5 children=none observed",
+        "PASS helper-window-destruction: menu exited with status 1 after parent destruction",
+        "PASS helper-window-destruction-group: no live group members; zombies=[]"
+      ],
+      "group_observations_file": "/tmp/dmenu-fuzzy-integration-mclmbvjk/gui/runs/recovery-asan-ubsan-helpers-token/group-observations.json",
+      "screenshots": 37
+    },
+    "ubsan-full": {
+      "report": "/tmp/dmenu-fuzzy-integration-mclmbvjk/gui/runs/recovery-ubsan-full/report.txt",
+      "results_json": "/tmp/dmenu-fuzzy-integration-mclmbvjk/gui/runs/recovery-ubsan-full/results.json",
+      "pass_count": 90,
+      "fail_count": 0,
+      "reported_helper_starts": 201,
+      "synthetic_helper_invocations": 15,
+      "process_diagnostic_records": 109,
+      "sanitizer_diagnostic_count": 0,
+      "lifecycle_resource_teardown_results": [
+        "PASS helper-repeated-request-resources: unique_starts=201 active_samples=200 warmup=10 asan=False RSS_budget=64pages post-warmup=2845..2847 fd_count=4..5; raw samples=repeated-resource-samples.json",
+        "PASS helper-repeated-group-cleanup: 201 recorded starts; every group observed within its cancellation bound",
+        "PASS no-preview-process-sampling: samples=12 rss_pages=2850..2850 fd_count=4..4 cpu_ticks=2..2 children=none observed",
+        "PASS helper-window-destruction: menu exited with status 1 after parent destruction",
+        "PASS helper-window-destruction-group: no live group members; zombies=[]"
+      ],
+      "group_observations_file": "/tmp/dmenu-fuzzy-integration-mclmbvjk/gui/runs/recovery-ubsan-full/group-observations.json",
+      "screenshots": 59
+    },
+    "ubsan-helpers-token": {
+      "report": "/tmp/dmenu-fuzzy-integration-mclmbvjk/gui/runs/recovery-ubsan-helpers-token/report.txt",
+      "results_json": "/tmp/dmenu-fuzzy-integration-mclmbvjk/gui/runs/recovery-ubsan-helpers-token/results.json",
+      "pass_count": 42,
+      "fail_count": 0,
+      "reported_helper_starts": 201,
+      "synthetic_helper_invocations": 0,
+      "process_diagnostic_records": 55,
+      "sanitizer_diagnostic_count": 0,
+      "lifecycle_resource_teardown_results": [
+        "PASS helper-repeated-request-resources: unique_starts=201 active_samples=200 warmup=10 asan=False RSS_budget=64pages post-warmup=2864..2882 fd_count=4..5; raw samples=repeated-resource-samples.json",
+        "PASS helper-repeated-group-cleanup: 201 recorded starts; every group observed within its cancellation bound",
+        "PASS no-preview-process-sampling: samples=12 rss_pages=2817..2817 fd_count=4..4 cpu_ticks=2..2 children=none observed",
+        "PASS helper-window-destruction: menu exited with status 1 after parent destruction",
+        "PASS helper-window-destruction-group: no live group members; zombies=[]"
+      ],
+      "group_observations_file": "/tmp/dmenu-fuzzy-integration-mclmbvjk/gui/runs/recovery-ubsan-helpers-token/group-observations.json",
+      "screenshots": 37
+    }
+  },
+  "exact_commands_and_environment": [
+    {
+      "name": "recovery-x-probe-0",
+      "command": [
+        "python3",
+        "-c",
+        "import ctypes,os,subprocess; x=ctypes.CDLL('libX11.so.6'); x.XOpenDisplay.restype=ctypes.c_void_p; d=x.XOpenDisplay(None); assert d; x.XCloseDisplay(ctypes.c_void_p(d)); subprocess.run(['xdotool','getdisplaygeometry'],check=True,stdout=subprocess.PIPE); print(os.environ['DISPLAY'])"
+      ],
+      "environment": {
+        "DISPLAY": ":0",
+        "LC_ALL": "C.UTF-8"
+      },
+      "exit_code": 0,
+      "duration_seconds": 0.04
+    },
+    {
+      "name": "recovery-x-probe-1",
+      "command": [
+        "python3",
+        "-c",
+        "import ctypes,os,subprocess; x=ctypes.CDLL('libX11.so.6'); x.XOpenDisplay.restype=ctypes.c_void_p; d=x.XOpenDisplay(None); assert d; x.XCloseDisplay(ctypes.c_void_p(d)); subprocess.run(['xdotool','getdisplaygeometry'],check=True,stdout=subprocess.PIPE); print(os.environ['DISPLAY'])"
+      ],
+      "environment": {
+        "DISPLAY": ":0",
+        "LC_ALL": "C.UTF-8"
+      },
+      "exit_code": 0,
+      "duration_seconds": 0.04
+    },
+    {
+      "name": "recovery-x-probe-2",
+      "command": [
+        "python3",
+        "-c",
+        "import ctypes,os,subprocess; x=ctypes.CDLL('libX11.so.6'); x.XOpenDisplay.restype=ctypes.c_void_p; d=x.XOpenDisplay(None); assert d; x.XCloseDisplay(ctypes.c_void_p(d)); subprocess.run(['xdotool','getdisplaygeometry'],check=True,stdout=subprocess.PIPE); print(os.environ['DISPLAY'])"
+      ],
+      "environment": {
+        "DISPLAY": ":0",
+        "LC_ALL": "C.UTF-8"
+      },
+      "exit_code": 0,
+      "duration_seconds": 0.04
+    },
+    {
+      "name": "recovery-x-probe-3",
+      "command": [
+        "python3",
+        "-c",
+        "import ctypes,os,subprocess; x=ctypes.CDLL('libX11.so.6'); x.XOpenDisplay.restype=ctypes.c_void_p; d=x.XOpenDisplay(None); assert d; x.XCloseDisplay(ctypes.c_void_p(d)); subprocess.run(['xdotool','getdisplaygeometry'],check=True,stdout=subprocess.PIPE); print(os.environ['DISPLAY'])"
+      ],
+      "environment": {
+        "DISPLAY": ":0",
+        "LC_ALL": "C.UTF-8"
+      },
+      "exit_code": 0,
+      "duration_seconds": 0.04
+    },
+    {
+      "name": "recovery-x-probe-4",
+      "command": [
+        "python3",
+        "-c",
+        "import ctypes,os,subprocess; x=ctypes.CDLL('libX11.so.6'); x.XOpenDisplay.restype=ctypes.c_void_p; d=x.XOpenDisplay(None); assert d; x.XCloseDisplay(ctypes.c_void_p(d)); subprocess.run(['xdotool','getdisplaygeometry'],check=True,stdout=subprocess.PIPE); print(os.environ['DISPLAY'])"
+      ],
+      "environment": {
+        "DISPLAY": ":0",
+        "LC_ALL": "C.UTF-8"
+      },
+      "exit_code": 0,
+      "duration_seconds": 0.05
+    },
+    {
+      "name": "normal-full",
+      "command": [
+        "python3",
+        "/tmp/dmenu-fuzzy-integration-mclmbvjk/gui/preview-checkpoint.py",
+        "--baseline",
+        "/tmp/dmenu-fuzzy-integration-mclmbvjk/gui/builds/original-baseline-normal/dmenu",
+        "--binary",
+        "/tmp/dmenu-fuzzy-integration-mclmbvjk/gui/builds/current-normal/dmenu",
+        "--output",
+        "/tmp/dmenu-fuzzy-integration-mclmbvjk/gui/runs/recovery-normal-full",
+        "--isolated-display"
+      ],
+      "environment": {
+        "DISPLAY": ":0",
+        "LC_ALL": "C.UTF-8"
+      },
+      "exit_code": 0,
+      "duration_seconds": 60.82
+    },
+    {
+      "name": "normal-helpers-fuzzy",
+      "command": [
+        "python3",
+        "/tmp/dmenu-fuzzy-integration-mclmbvjk/gui/preview-checkpoint.py",
+        "--helpers-only",
+        "--binary",
+        "/tmp/dmenu-fuzzy-integration-mclmbvjk/gui/builds/current-normal/dmenu",
+        "--output",
+        "/tmp/dmenu-fuzzy-integration-mclmbvjk/gui/runs/recovery-normal-helpers-fuzzy",
+        "--isolated-display"
+      ],
+      "environment": {
+        "DISPLAY": ":0",
+        "LC_ALL": "C.UTF-8"
+      },
+      "exit_code": 0,
+      "duration_seconds": 45.51
+    },
+    {
+      "name": "normal-helpers-token",
+      "command": [
+        "python3",
+        "/tmp/dmenu-fuzzy-integration-mclmbvjk/gui/preview-checkpoint.py",
+        "--helpers-only",
+        "--token-mode",
+        "--binary",
+        "/tmp/dmenu-fuzzy-integration-mclmbvjk/gui/builds/current-normal/dmenu",
+        "--output",
+        "/tmp/dmenu-fuzzy-integration-mclmbvjk/gui/runs/recovery-normal-helpers-token",
+        "--isolated-display"
+      ],
+      "environment": {
+        "DISPLAY": ":0",
+        "LC_ALL": "C.UTF-8"
+      },
+      "exit_code": 0,
+      "duration_seconds": 45.63
+    },
+    {
+      "name": "asan-ubsan-full",
+      "command": [
+        "python3",
+        "/tmp/dmenu-fuzzy-integration-mclmbvjk/gui/preview-checkpoint.py",
+        "--baseline",
+        "/tmp/dmenu-fuzzy-integration-mclmbvjk/gui/builds/corrected-baseline-asan-ubsan/dmenu",
+        "--binary",
+        "/tmp/dmenu-fuzzy-integration-mclmbvjk/gui/builds/current-asan-ubsan/dmenu",
+        "--output",
+        "/tmp/dmenu-fuzzy-integration-mclmbvjk/gui/runs/recovery-asan-ubsan-full",
+        "--isolated-display"
+      ],
+      "environment": {
+        "DISPLAY": ":0",
+        "ASAN_OPTIONS": "detect_leaks=0",
+        "UBSAN_OPTIONS": "halt_on_error=1",
+        "LC_ALL": "C.UTF-8"
+      },
+      "exit_code": 0,
+      "duration_seconds": 63.91
+    },
+    {
+      "name": "asan-ubsan-helpers-token",
+      "command": [
+        "python3",
+        "/tmp/dmenu-fuzzy-integration-mclmbvjk/gui/preview-checkpoint.py",
+        "--helpers-only",
+        "--token-mode",
+        "--binary",
+        "/tmp/dmenu-fuzzy-integration-mclmbvjk/gui/builds/current-asan-ubsan/dmenu",
+        "--output",
+        "/tmp/dmenu-fuzzy-integration-mclmbvjk/gui/runs/recovery-asan-ubsan-helpers-token",
+        "--isolated-display"
+      ],
+      "environment": {
+        "DISPLAY": ":0",
+        "ASAN_OPTIONS": "detect_leaks=0",
+        "UBSAN_OPTIONS": "halt_on_error=1",
+        "LC_ALL": "C.UTF-8"
+      },
+      "exit_code": 0,
+      "duration_seconds": 47.38
+    },
+    {
+      "name": "ubsan-full",
+      "command": [
+        "python3",
+        "/tmp/dmenu-fuzzy-integration-mclmbvjk/gui/preview-checkpoint.py",
+        "--baseline",
+        "/tmp/dmenu-fuzzy-integration-mclmbvjk/gui/builds/corrected-baseline-ubsan/dmenu",
+        "--binary",
+        "/tmp/dmenu-fuzzy-integration-mclmbvjk/gui/builds/current-ubsan/dmenu",
+        "--output",
+        "/tmp/dmenu-fuzzy-integration-mclmbvjk/gui/runs/recovery-ubsan-full",
+        "--isolated-display"
+      ],
+      "environment": {
+        "DISPLAY": ":0",
+        "UBSAN_OPTIONS": "halt_on_error=1",
+        "LC_ALL": "C.UTF-8"
+      },
+      "exit_code": 0,
+      "duration_seconds": 60.41
+    },
+    {
+      "name": "ubsan-helpers-token",
+      "command": [
+        "python3",
+        "/tmp/dmenu-fuzzy-integration-mclmbvjk/gui/preview-checkpoint.py",
+        "--helpers-only",
+        "--token-mode",
+        "--binary",
+        "/tmp/dmenu-fuzzy-integration-mclmbvjk/gui/builds/current-ubsan/dmenu",
+        "--output",
+        "/tmp/dmenu-fuzzy-integration-mclmbvjk/gui/runs/recovery-ubsan-helpers-token",
+        "--isolated-display"
+      ],
+      "environment": {
+        "DISPLAY": ":0",
+        "UBSAN_OPTIONS": "halt_on_error=1",
+        "LC_ALL": "C.UTF-8"
+      },
+      "exit_code": 0,
+      "duration_seconds": 45.32
+    }
+  ],
+  "leak_and_reproducer": {
+    "runner_command": [
+      "python3",
+      "/tmp/dmenu-fuzzy-integration-mclmbvjk/gui/exit-and-repro.py"
+    ],
+    "records_file": "/tmp/dmenu-fuzzy-integration-mclmbvjk/gui/leak-repro-records.json",
+    "cases": [
+      {
+        "case": "original-baseline",
+        "command": [
+          "/tmp/dmenu-fuzzy-integration-mclmbvjk/gui/builds/original-baseline-asan-ubsan/dmenu"
+        ],
+        "environment": {
+          "DISPLAY": ":0",
+          "ASAN_OPTIONS": "detect_leaks=1",
+          "UBSAN_OPTIONS": "halt_on_error=1"
+        },
+        "stdout": "",
+        "status": 1,
+        "stderr": "\n=================================================================\n==1540797==ERROR: LeakSanitizer: detected memory leaks\n\nDirect leak of 6656 byte(s) in 26 object(s) allocated from:\n    #0 0x768dfc0fd9c7 in malloc ../../../../src/libsanitizer/asan/asan_malloc_linux.cpp:69\n    #1 0x768dfbfd17fc  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x227fc) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #2 0x768dfbfd5ed8  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x26ed8) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #3 0x768dfbfe4331  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x35331) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #4 0x768dfb714518  (/lib/x86_64-linux-gnu/libexpat.so.1+0xe518) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #5 0x768dfb7157d2  (/lib/x86_64-linux-gnu/libexpat.so.1+0xf7d2) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #6 0x768dfb715ef7  (/lib/x86_64-linux-gnu/libexpat.so.1+0xfef7) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #7 0x768dfb718b40  (/lib/x86_64-linux-gnu/libexpat.so.1+0x12b40) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #8 0x768dfb70a46e  (/lib/x86_64-linux-gnu/libexpat.so.1+0x446e) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #9 0x768dfb70f963 in XML_ParseBuffer (/lib/x86_64-linux-gnu/libexpat.so.1+0x9963) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #10 0x768dfbfde83d  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x2f83d) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #11 0x768dfbfdf22c  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x3022c) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #12 0x768dfbfdf478  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x30478) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #13 0x768dfbfe2436  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x33436) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #14 0x768dfb714518  (/lib/x86_64-linux-gnu/libexpat.so.1+0xe518) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #15 0x768dfb7157d2  (/lib/x86_64-linux-gnu/libexpat.so.1+0xf7d2) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #16 0x768dfb715ef7  (/lib/x86_64-linux-gnu/libexpat.so.1+0xfef7) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #17 0x768dfb718b40  (/lib/x86_64-linux-gnu/libexpat.so.1+0x12b40) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #18 0x768dfb70a46e  (/lib/x86_64-linux-gnu/libexpat.so.1+0x446e) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #19 0x768dfb70f963 in XML_ParseBuffer (/lib/x86_64-linux-gnu/libexpat.so.1+0x9963) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #20 0x768dfbfde83d  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x2f83d) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #21 0x768dfbfdf22c  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x3022c) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #22 0x768dfbfc63b5  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x173b5) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #23 0x768dfbfc11c0  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x121c0) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #24 0x768dfbfc66bc in FcInit (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x176bc) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #25 0x768dfbfa569a in XftInit (/lib/x86_64-linux-gnu/libXft.so.2+0x1169a) (BuildId: 18daad8558a541281b33a9045b7758daa2dea473)\n    #26 0x768dfbfa56d1 in XftFontMatch (/lib/x86_64-linux-gnu/libXft.so.2+0x116d1) (BuildId: 18daad8558a541281b33a9045b7758daa2dea473)\n    #27 0x768dfbfa5a3d in XftFontOpenName (/lib/x86_64-linux-gnu/libXft.so.2+0x11a3d) (BuildId: 18daad8558a541281b33a9045b7758daa2dea473)\n    #28 0x5fafd6072d7f in xfont_create /tmp/dmenu-fuzzy-integration-mclmbvjk/gui/builds/original-baseline-asan-ubsan/drw.c:104\n    #29 0x5fafd6073ce8 in drw_fontset_create /tmp/dmenu-fuzzy-integration-mclmbvjk/gui/builds/original-baseline-asan-ubsan/drw.c:152\n\nIndirect leak of 1664 byte(s) in 52 object(s) allocated from:\n    #0 0x768dfc0fd340 in calloc ../../../../src/libsanitizer/asan/asan_malloc_linux.cpp:77\n    #1 0x768dfbfd5e6f  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x26e6f) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #2 0x768dfbfe4331  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x35331) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #3 0x768dfb714518  (/lib/x86_64-linux-gnu/libexpat.so.1+0xe518) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #4 0x768dfb7157d2  (/lib/x86_64-linux-gnu/libexpat.so.1+0xf7d2) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #5 0x768dfb715ef7  (/lib/x86_64-linux-gnu/libexpat.so.1+0xfef7) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #6 0x768dfb718b40  (/lib/x86_64-linux-gnu/libexpat.so.1+0x12b40) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #7 0x768dfb70a46e  (/lib/x86_64-linux-gnu/libexpat.so.1+0x446e) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #8 0x768dfb70f963 in XML_ParseBuffer (/lib/x86_64-linux-gnu/libexpat.so.1+0x9963) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #9 0x768dfbfde83d  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x2f83d) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #10 0x768dfbfdf22c  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x3022c) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #11 0x768dfbfdf478  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x30478) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #12 0x768dfbfe2436  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x33436) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #13 0x768dfb714518  (/lib/x86_64-linux-gnu/libexpat.so.1+0xe518) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #14 0x768dfb7157d2  (/lib/x86_64-linux-gnu/libexpat.so.1+0xf7d2) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #15 0x768dfb715ef7  (/lib/x86_64-linux-gnu/libexpat.so.1+0xfef7) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #16 0x768dfb718b40  (/lib/x86_64-linux-gnu/libexpat.so.1+0x12b40) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #17 0x768dfb70a46e  (/lib/x86_64-linux-gnu/libexpat.so.1+0x446e) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #18 0x768dfb70f963 in XML_ParseBuffer (/lib/x86_64-linux-gnu/libexpat.so.1+0x9963) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #19 0x768dfbfde83d  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x2f83d) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #20 0x768dfbfdf22c  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x3022c) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #21 0x768dfbfc63b5  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x173b5) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #22 0x768dfbfc11c0  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x121c0) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #23 0x768dfbfc66bc in FcInit (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x176bc) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #24 0x768dfbfa569a in XftInit (/lib/x86_64-linux-gnu/libXft.so.2+0x1169a) (BuildId: 18daad8558a541281b33a9045b7758daa2dea473)\n    #25 0x768dfbfa56d1 in XftFontMatch (/lib/x86_64-linux-gnu/libXft.so.2+0x116d1) (BuildId: 18daad8558a541281b33a9045b7758daa2dea473)\n    #26 0x768dfbfa5a3d in XftFontOpenName (/lib/x86_64-linux-gnu/libXft.so.2+0x11a3d) (BuildId: 18daad8558a541281b33a9045b7758daa2dea473)\n    #27 0x5fafd6072d7f in xfont_create /tmp/dmenu-fuzzy-integration-mclmbvjk/gui/builds/original-baseline-asan-ubsan/drw.c:104\n    #28 0x5fafd6073ce8 in drw_fontset_create /tmp/dmenu-fuzzy-integration-mclmbvjk/gui/builds/original-baseline-asan-ubsan/drw.c:152\n    #29 0x5fafd606f393 in main /tmp/dmenu-fuzzy-integration-mclmbvjk/gui/builds/original-baseline-asan-ubsan/dmenu.c:873\n\nIndirect leak of 519 byte(s) in 50 object(s) allocated from:\n    #0 0x768dfc0f74e8 in strdup ../../../../src/libsanitizer/asan/asan_interceptors.cpp:578\n    #1 0x768dfbfd0ff7 in FcValueSave (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x21ff7) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #2 0x768dfbfd5e86  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x26e86) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #3 0x768dfbfe4331  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x35331) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #4 0x768dfb714518  (/lib/x86_64-linux-gnu/libexpat.so.1+0xe518) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #5 0x768dfb7157d2  (/lib/x86_64-linux-gnu/libexpat.so.1+0xf7d2) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #6 0x768dfb715ef7  (/lib/x86_64-linux-gnu/libexpat.so.1+0xfef7) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #7 0x768dfb718b40  (/lib/x86_64-linux-gnu/libexpat.so.1+0x12b40) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #8 0x768dfb70a46e  (/lib/x86_64-linux-gnu/libexpat.so.1+0x446e) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #9 0x768dfb70f963 in XML_ParseBuffer (/lib/x86_64-linux-gnu/libexpat.so.1+0x9963) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #10 0x768dfbfde83d  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x2f83d) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #11 0x768dfbfdf22c  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x3022c) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #12 0x768dfbfdf478  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x30478) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #13 0x768dfbfe2436  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x33436) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #14 0x768dfb714518  (/lib/x86_64-linux-gnu/libexpat.so.1+0xe518) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #15 0x768dfb7157d2  (/lib/x86_64-linux-gnu/libexpat.so.1+0xf7d2) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #16 0x768dfb715ef7  (/lib/x86_64-linux-gnu/libexpat.so.1+0xfef7) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #17 0x768dfb718b40  (/lib/x86_64-linux-gnu/libexpat.so.1+0x12b40) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #18 0x768dfb70a46e  (/lib/x86_64-linux-gnu/libexpat.so.1+0x446e) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #19 0x768dfb70f963 in XML_ParseBuffer (/lib/x86_64-linux-gnu/libexpat.so.1+0x9963) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #20 0x768dfbfde83d  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x2f83d) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #21 0x768dfbfdf22c  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x3022c) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #22 0x768dfbfc63b5  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x173b5) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #23 0x768dfbfc11c0  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x121c0) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #24 0x768dfbfc66bc in FcInit (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x176bc) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #25 0x768dfbfa569a in XftInit (/lib/x86_64-linux-gnu/libXft.so.2+0x1169a) (BuildId: 18daad8558a541281b33a9045b7758daa2dea473)\n    #26 0x768dfbfa56d1 in XftFontMatch (/lib/x86_64-linux-gnu/libXft.so.2+0x116d1) (BuildId: 18daad8558a541281b33a9045b7758daa2dea473)\n    #27 0x768dfbfa5a3d in XftFontOpenName (/lib/x86_64-linux-gnu/libXft.so.2+0x11a3d) (BuildId: 18daad8558a541281b33a9045b7758daa2dea473)\n    #28 0x5fafd6072d7f in xfont_create /tmp/dmenu-fuzzy-integration-mclmbvjk/gui/builds/original-baseline-asan-ubsan/drw.c:104\n    #29 0x5fafd6073ce8 in drw_fontset_create /tmp/dmenu-fuzzy-integration-mclmbvjk/gui/builds/original-baseline-asan-ubsan/drw.c:152\n\nSUMMARY: AddressSanitizer: 8839 byte(s) leaked in 128 allocation(s).\n"
+      },
+      {
+        "case": "corrected-baseline",
+        "command": [
+          "/tmp/dmenu-fuzzy-integration-mclmbvjk/gui/builds/corrected-baseline-asan-ubsan/dmenu"
+        ],
+        "environment": {
+          "DISPLAY": ":0",
+          "ASAN_OPTIONS": "detect_leaks=1",
+          "UBSAN_OPTIONS": "halt_on_error=1"
+        },
+        "stdout": "",
+        "status": 1,
+        "stderr": "\n=================================================================\n==1540802==ERROR: LeakSanitizer: detected memory leaks\n\nDirect leak of 6656 byte(s) in 26 object(s) allocated from:\n    #0 0x79535f6fd9c7 in malloc ../../../../src/libsanitizer/asan/asan_malloc_linux.cpp:69\n    #1 0x79535fd7c7fc  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x227fc) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #2 0x79535fd80ed8  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x26ed8) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #3 0x79535fd8f331  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x35331) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #4 0x79535f2d9518  (/lib/x86_64-linux-gnu/libexpat.so.1+0xe518) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #5 0x79535f2da7d2  (/lib/x86_64-linux-gnu/libexpat.so.1+0xf7d2) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #6 0x79535f2daef7  (/lib/x86_64-linux-gnu/libexpat.so.1+0xfef7) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #7 0x79535f2ddb40  (/lib/x86_64-linux-gnu/libexpat.so.1+0x12b40) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #8 0x79535f2cf46e  (/lib/x86_64-linux-gnu/libexpat.so.1+0x446e) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #9 0x79535f2d4963 in XML_ParseBuffer (/lib/x86_64-linux-gnu/libexpat.so.1+0x9963) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #10 0x79535fd8983d  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x2f83d) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #11 0x79535fd8a22c  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x3022c) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #12 0x79535fd8a478  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x30478) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #13 0x79535fd8d436  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x33436) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #14 0x79535f2d9518  (/lib/x86_64-linux-gnu/libexpat.so.1+0xe518) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #15 0x79535f2da7d2  (/lib/x86_64-linux-gnu/libexpat.so.1+0xf7d2) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #16 0x79535f2daef7  (/lib/x86_64-linux-gnu/libexpat.so.1+0xfef7) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #17 0x79535f2ddb40  (/lib/x86_64-linux-gnu/libexpat.so.1+0x12b40) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #18 0x79535f2cf46e  (/lib/x86_64-linux-gnu/libexpat.so.1+0x446e) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #19 0x79535f2d4963 in XML_ParseBuffer (/lib/x86_64-linux-gnu/libexpat.so.1+0x9963) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #20 0x79535fd8983d  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x2f83d) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #21 0x79535fd8a22c  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x3022c) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #22 0x79535fd713b5  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x173b5) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #23 0x79535fd6c1c0  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x121c0) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #24 0x79535fd716bc in FcInit (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x176bc) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #25 0x79535fd5069a in XftInit (/lib/x86_64-linux-gnu/libXft.so.2+0x1169a) (BuildId: 18daad8558a541281b33a9045b7758daa2dea473)\n    #26 0x79535fd506d1 in XftFontMatch (/lib/x86_64-linux-gnu/libXft.so.2+0x116d1) (BuildId: 18daad8558a541281b33a9045b7758daa2dea473)\n    #27 0x79535fd50a3d in XftFontOpenName (/lib/x86_64-linux-gnu/libXft.so.2+0x11a3d) (BuildId: 18daad8558a541281b33a9045b7758daa2dea473)\n    #28 0x6269325a6d50 in xfont_create /tmp/dmenu-fuzzy-integration-mclmbvjk/gui/builds/corrected-baseline-asan-ubsan/drw.c:104\n    #29 0x6269325a7cb9 in drw_fontset_create /tmp/dmenu-fuzzy-integration-mclmbvjk/gui/builds/corrected-baseline-asan-ubsan/drw.c:152\n\nIndirect leak of 1664 byte(s) in 52 object(s) allocated from:\n    #0 0x79535f6fd340 in calloc ../../../../src/libsanitizer/asan/asan_malloc_linux.cpp:77\n    #1 0x79535fd80e6f  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x26e6f) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #2 0x79535fd8f331  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x35331) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #3 0x79535f2d9518  (/lib/x86_64-linux-gnu/libexpat.so.1+0xe518) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #4 0x79535f2da7d2  (/lib/x86_64-linux-gnu/libexpat.so.1+0xf7d2) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #5 0x79535f2daef7  (/lib/x86_64-linux-gnu/libexpat.so.1+0xfef7) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #6 0x79535f2ddb40  (/lib/x86_64-linux-gnu/libexpat.so.1+0x12b40) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #7 0x79535f2cf46e  (/lib/x86_64-linux-gnu/libexpat.so.1+0x446e) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #8 0x79535f2d4963 in XML_ParseBuffer (/lib/x86_64-linux-gnu/libexpat.so.1+0x9963) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #9 0x79535fd8983d  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x2f83d) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #10 0x79535fd8a22c  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x3022c) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #11 0x79535fd8a478  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x30478) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #12 0x79535fd8d436  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x33436) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #13 0x79535f2d9518  (/lib/x86_64-linux-gnu/libexpat.so.1+0xe518) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #14 0x79535f2da7d2  (/lib/x86_64-linux-gnu/libexpat.so.1+0xf7d2) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #15 0x79535f2daef7  (/lib/x86_64-linux-gnu/libexpat.so.1+0xfef7) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #16 0x79535f2ddb40  (/lib/x86_64-linux-gnu/libexpat.so.1+0x12b40) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #17 0x79535f2cf46e  (/lib/x86_64-linux-gnu/libexpat.so.1+0x446e) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #18 0x79535f2d4963 in XML_ParseBuffer (/lib/x86_64-linux-gnu/libexpat.so.1+0x9963) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #19 0x79535fd8983d  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x2f83d) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #20 0x79535fd8a22c  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x3022c) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #21 0x79535fd713b5  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x173b5) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #22 0x79535fd6c1c0  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x121c0) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #23 0x79535fd716bc in FcInit (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x176bc) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #24 0x79535fd5069a in XftInit (/lib/x86_64-linux-gnu/libXft.so.2+0x1169a) (BuildId: 18daad8558a541281b33a9045b7758daa2dea473)\n    #25 0x79535fd506d1 in XftFontMatch (/lib/x86_64-linux-gnu/libXft.so.2+0x116d1) (BuildId: 18daad8558a541281b33a9045b7758daa2dea473)\n    #26 0x79535fd50a3d in XftFontOpenName (/lib/x86_64-linux-gnu/libXft.so.2+0x11a3d) (BuildId: 18daad8558a541281b33a9045b7758daa2dea473)\n    #27 0x6269325a6d50 in xfont_create /tmp/dmenu-fuzzy-integration-mclmbvjk/gui/builds/corrected-baseline-asan-ubsan/drw.c:104\n    #28 0x6269325a7cb9 in drw_fontset_create /tmp/dmenu-fuzzy-integration-mclmbvjk/gui/builds/corrected-baseline-asan-ubsan/drw.c:152\n    #29 0x6269325a3364 in main /tmp/dmenu-fuzzy-integration-mclmbvjk/gui/builds/corrected-baseline-asan-ubsan/dmenu.c:873\n\nIndirect leak of 519 byte(s) in 50 object(s) allocated from:\n    #0 0x79535f6f74e8 in strdup ../../../../src/libsanitizer/asan/asan_interceptors.cpp:578\n    #1 0x79535fd7bff7 in FcValueSave (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x21ff7) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #2 0x79535fd80e86  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x26e86) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #3 0x79535fd8f331  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x35331) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #4 0x79535f2d9518  (/lib/x86_64-linux-gnu/libexpat.so.1+0xe518) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #5 0x79535f2da7d2  (/lib/x86_64-linux-gnu/libexpat.so.1+0xf7d2) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #6 0x79535f2daef7  (/lib/x86_64-linux-gnu/libexpat.so.1+0xfef7) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #7 0x79535f2ddb40  (/lib/x86_64-linux-gnu/libexpat.so.1+0x12b40) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #8 0x79535f2cf46e  (/lib/x86_64-linux-gnu/libexpat.so.1+0x446e) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #9 0x79535f2d4963 in XML_ParseBuffer (/lib/x86_64-linux-gnu/libexpat.so.1+0x9963) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #10 0x79535fd8983d  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x2f83d) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #11 0x79535fd8a22c  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x3022c) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #12 0x79535fd8a478  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x30478) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #13 0x79535fd8d436  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x33436) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #14 0x79535f2d9518  (/lib/x86_64-linux-gnu/libexpat.so.1+0xe518) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #15 0x79535f2da7d2  (/lib/x86_64-linux-gnu/libexpat.so.1+0xf7d2) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #16 0x79535f2daef7  (/lib/x86_64-linux-gnu/libexpat.so.1+0xfef7) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #17 0x79535f2ddb40  (/lib/x86_64-linux-gnu/libexpat.so.1+0x12b40) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #18 0x79535f2cf46e  (/lib/x86_64-linux-gnu/libexpat.so.1+0x446e) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #19 0x79535f2d4963 in XML_ParseBuffer (/lib/x86_64-linux-gnu/libexpat.so.1+0x9963) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #20 0x79535fd8983d  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x2f83d) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #21 0x79535fd8a22c  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x3022c) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #22 0x79535fd713b5  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x173b5) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #23 0x79535fd6c1c0  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x121c0) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #24 0x79535fd716bc in FcInit (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x176bc) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #25 0x79535fd5069a in XftInit (/lib/x86_64-linux-gnu/libXft.so.2+0x1169a) (BuildId: 18daad8558a541281b33a9045b7758daa2dea473)\n    #26 0x79535fd506d1 in XftFontMatch (/lib/x86_64-linux-gnu/libXft.so.2+0x116d1) (BuildId: 18daad8558a541281b33a9045b7758daa2dea473)\n    #27 0x79535fd50a3d in XftFontOpenName (/lib/x86_64-linux-gnu/libXft.so.2+0x11a3d) (BuildId: 18daad8558a541281b33a9045b7758daa2dea473)\n    #28 0x6269325a6d50 in xfont_create /tmp/dmenu-fuzzy-integration-mclmbvjk/gui/builds/corrected-baseline-asan-ubsan/drw.c:104\n    #29 0x6269325a7cb9 in drw_fontset_create /tmp/dmenu-fuzzy-integration-mclmbvjk/gui/builds/corrected-baseline-asan-ubsan/drw.c:152\n\nSUMMARY: AddressSanitizer: 8839 byte(s) leaked in 128 allocation(s).\n"
+      },
+      {
+        "case": "current",
+        "command": [
+          "/tmp/dmenu-fuzzy-integration-mclmbvjk/gui/builds/current-asan-ubsan/dmenu"
+        ],
+        "environment": {
+          "DISPLAY": ":0",
+          "ASAN_OPTIONS": "detect_leaks=1",
+          "UBSAN_OPTIONS": "halt_on_error=1"
+        },
+        "stdout": "",
+        "status": 1,
+        "stderr": "\n=================================================================\n==1540813==ERROR: LeakSanitizer: detected memory leaks\n\nDirect leak of 6656 byte(s) in 26 object(s) allocated from:\n    #0 0x77c4782fd9c7 in malloc ../../../../src/libsanitizer/asan/asan_malloc_linux.cpp:69\n    #1 0x77c4789237fc  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x227fc) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #2 0x77c478927ed8  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x26ed8) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #3 0x77c478936331  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x35331) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #4 0x77c477e82518  (/lib/x86_64-linux-gnu/libexpat.so.1+0xe518) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #5 0x77c477e837d2  (/lib/x86_64-linux-gnu/libexpat.so.1+0xf7d2) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #6 0x77c477e83ef7  (/lib/x86_64-linux-gnu/libexpat.so.1+0xfef7) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #7 0x77c477e86b40  (/lib/x86_64-linux-gnu/libexpat.so.1+0x12b40) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #8 0x77c477e7846e  (/lib/x86_64-linux-gnu/libexpat.so.1+0x446e) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #9 0x77c477e7d963 in XML_ParseBuffer (/lib/x86_64-linux-gnu/libexpat.so.1+0x9963) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #10 0x77c47893083d  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x2f83d) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #11 0x77c47893122c  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x3022c) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #12 0x77c478931478  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x30478) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #13 0x77c478934436  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x33436) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #14 0x77c477e82518  (/lib/x86_64-linux-gnu/libexpat.so.1+0xe518) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #15 0x77c477e837d2  (/lib/x86_64-linux-gnu/libexpat.so.1+0xf7d2) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #16 0x77c477e83ef7  (/lib/x86_64-linux-gnu/libexpat.so.1+0xfef7) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #17 0x77c477e86b40  (/lib/x86_64-linux-gnu/libexpat.so.1+0x12b40) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #18 0x77c477e7846e  (/lib/x86_64-linux-gnu/libexpat.so.1+0x446e) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #19 0x77c477e7d963 in XML_ParseBuffer (/lib/x86_64-linux-gnu/libexpat.so.1+0x9963) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #20 0x77c47893083d  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x2f83d) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #21 0x77c47893122c  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x3022c) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #22 0x77c4789183b5  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x173b5) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #23 0x77c4789131c0  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x121c0) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #24 0x77c4789186bc in FcInit (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x176bc) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #25 0x77c4788f769a in XftInit (/lib/x86_64-linux-gnu/libXft.so.2+0x1169a) (BuildId: 18daad8558a541281b33a9045b7758daa2dea473)\n    #26 0x77c4788f76d1 in XftFontMatch (/lib/x86_64-linux-gnu/libXft.so.2+0x116d1) (BuildId: 18daad8558a541281b33a9045b7758daa2dea473)\n    #27 0x77c4788f7a3d in XftFontOpenName (/lib/x86_64-linux-gnu/libXft.so.2+0x11a3d) (BuildId: 18daad8558a541281b33a9045b7758daa2dea473)\n    #28 0x60bb3706bc20 in xfont_create /tmp/dmenu-fuzzy-integration-mclmbvjk/gui/builds/current-asan-ubsan/drw.c:104\n    #29 0x60bb3706cb89 in drw_fontset_create /tmp/dmenu-fuzzy-integration-mclmbvjk/gui/builds/current-asan-ubsan/drw.c:152\n\nIndirect leak of 1664 byte(s) in 52 object(s) allocated from:\n    #0 0x77c4782fd340 in calloc ../../../../src/libsanitizer/asan/asan_malloc_linux.cpp:77\n    #1 0x77c478927e6f  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x26e6f) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #2 0x77c478936331  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x35331) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #3 0x77c477e82518  (/lib/x86_64-linux-gnu/libexpat.so.1+0xe518) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #4 0x77c477e837d2  (/lib/x86_64-linux-gnu/libexpat.so.1+0xf7d2) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #5 0x77c477e83ef7  (/lib/x86_64-linux-gnu/libexpat.so.1+0xfef7) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #6 0x77c477e86b40  (/lib/x86_64-linux-gnu/libexpat.so.1+0x12b40) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #7 0x77c477e7846e  (/lib/x86_64-linux-gnu/libexpat.so.1+0x446e) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #8 0x77c477e7d963 in XML_ParseBuffer (/lib/x86_64-linux-gnu/libexpat.so.1+0x9963) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #9 0x77c47893083d  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x2f83d) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #10 0x77c47893122c  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x3022c) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #11 0x77c478931478  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x30478) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #12 0x77c478934436  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x33436) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #13 0x77c477e82518  (/lib/x86_64-linux-gnu/libexpat.so.1+0xe518) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #14 0x77c477e837d2  (/lib/x86_64-linux-gnu/libexpat.so.1+0xf7d2) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #15 0x77c477e83ef7  (/lib/x86_64-linux-gnu/libexpat.so.1+0xfef7) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #16 0x77c477e86b40  (/lib/x86_64-linux-gnu/libexpat.so.1+0x12b40) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #17 0x77c477e7846e  (/lib/x86_64-linux-gnu/libexpat.so.1+0x446e) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #18 0x77c477e7d963 in XML_ParseBuffer (/lib/x86_64-linux-gnu/libexpat.so.1+0x9963) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #19 0x77c47893083d  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x2f83d) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #20 0x77c47893122c  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x3022c) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #21 0x77c4789183b5  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x173b5) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #22 0x77c4789131c0  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x121c0) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #23 0x77c4789186bc in FcInit (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x176bc) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #24 0x77c4788f769a in XftInit (/lib/x86_64-linux-gnu/libXft.so.2+0x1169a) (BuildId: 18daad8558a541281b33a9045b7758daa2dea473)\n    #25 0x77c4788f76d1 in XftFontMatch (/lib/x86_64-linux-gnu/libXft.so.2+0x116d1) (BuildId: 18daad8558a541281b33a9045b7758daa2dea473)\n    #26 0x77c4788f7a3d in XftFontOpenName (/lib/x86_64-linux-gnu/libXft.so.2+0x11a3d) (BuildId: 18daad8558a541281b33a9045b7758daa2dea473)\n    #27 0x60bb3706bc20 in xfont_create /tmp/dmenu-fuzzy-integration-mclmbvjk/gui/builds/current-asan-ubsan/drw.c:104\n    #28 0x60bb3706cb89 in drw_fontset_create /tmp/dmenu-fuzzy-integration-mclmbvjk/gui/builds/current-asan-ubsan/drw.c:152\n    #29 0x60bb37067309 in main /tmp/dmenu-fuzzy-integration-mclmbvjk/gui/builds/current-asan-ubsan/dmenu.c:1261\n\nIndirect leak of 519 byte(s) in 50 object(s) allocated from:\n    #0 0x77c4782f74e8 in strdup ../../../../src/libsanitizer/asan/asan_interceptors.cpp:578\n    #1 0x77c478922ff7 in FcValueSave (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x21ff7) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #2 0x77c478927e86  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x26e86) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #3 0x77c478936331  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x35331) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #4 0x77c477e82518  (/lib/x86_64-linux-gnu/libexpat.so.1+0xe518) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #5 0x77c477e837d2  (/lib/x86_64-linux-gnu/libexpat.so.1+0xf7d2) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #6 0x77c477e83ef7  (/lib/x86_64-linux-gnu/libexpat.so.1+0xfef7) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #7 0x77c477e86b40  (/lib/x86_64-linux-gnu/libexpat.so.1+0x12b40) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #8 0x77c477e7846e  (/lib/x86_64-linux-gnu/libexpat.so.1+0x446e) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #9 0x77c477e7d963 in XML_ParseBuffer (/lib/x86_64-linux-gnu/libexpat.so.1+0x9963) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #10 0x77c47893083d  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x2f83d) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #11 0x77c47893122c  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x3022c) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #12 0x77c478931478  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x30478) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #13 0x77c478934436  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x33436) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #14 0x77c477e82518  (/lib/x86_64-linux-gnu/libexpat.so.1+0xe518) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #15 0x77c477e837d2  (/lib/x86_64-linux-gnu/libexpat.so.1+0xf7d2) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #16 0x77c477e83ef7  (/lib/x86_64-linux-gnu/libexpat.so.1+0xfef7) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #17 0x77c477e86b40  (/lib/x86_64-linux-gnu/libexpat.so.1+0x12b40) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #18 0x77c477e7846e  (/lib/x86_64-linux-gnu/libexpat.so.1+0x446e) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #19 0x77c477e7d963 in XML_ParseBuffer (/lib/x86_64-linux-gnu/libexpat.so.1+0x9963) (BuildId: 8ae4253012c773ce4f3ceb73efbd6dbd47fd9510)\n    #20 0x77c47893083d  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x2f83d) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #21 0x77c47893122c  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x3022c) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #22 0x77c4789183b5  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x173b5) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #23 0x77c4789131c0  (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x121c0) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #24 0x77c4789186bc in FcInit (/lib/x86_64-linux-gnu/libfontconfig.so.1+0x176bc) (BuildId: 9ea8985291d6ca9e904a796a5767d191039d813d)\n    #25 0x77c4788f769a in XftInit (/lib/x86_64-linux-gnu/libXft.so.2+0x1169a) (BuildId: 18daad8558a541281b33a9045b7758daa2dea473)\n    #26 0x77c4788f76d1 in XftFontMatch (/lib/x86_64-linux-gnu/libXft.so.2+0x116d1) (BuildId: 18daad8558a541281b33a9045b7758daa2dea473)\n    #27 0x77c4788f7a3d in XftFontOpenName (/lib/x86_64-linux-gnu/libXft.so.2+0x11a3d) (BuildId: 18daad8558a541281b33a9045b7758daa2dea473)\n    #28 0x60bb3706bc20 in xfont_create /tmp/dmenu-fuzzy-integration-mclmbvjk/gui/builds/current-asan-ubsan/drw.c:104\n    #29 0x60bb3706cb89 in drw_fontset_create /tmp/dmenu-fuzzy-integration-mclmbvjk/gui/builds/current-asan-ubsan/drw.c:152\n\nSUMMARY: AddressSanitizer: 8839 byte(s) leaked in 128 allocation(s).\n"
+      },
+      {
+        "case": "original-baseline-query-a-item-a",
+        "command": [
+          "/tmp/dmenu-fuzzy-integration-mclmbvjk/gui/builds/original-baseline-asan-ubsan/dmenu"
+        ],
+        "environment": {
+          "DISPLAY": ":0",
+          "ASAN_OPTIONS": "detect_leaks=0",
+          "UBSAN_OPTIONS": "halt_on_error=1"
+        },
+        "stdout": "",
+        "status": 1,
+        "stderr": "dmenu.c:303:29: runtime error: load of address 0x50200008bd38 with insufficient space for an object of type 'struct item *'\n0x50200008bd38: note: pointer points here\n 60 52 00 00  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  00 00 00 00\n              ^ \n"
+      },
+      {
+        "case": "current-query-a-item-a",
+        "command": [
+          "/tmp/dmenu-fuzzy-integration-mclmbvjk/gui/builds/current-asan-ubsan/dmenu"
+        ],
+        "environment": {
+          "DISPLAY": ":0",
+          "ASAN_OPTIONS": "detect_leaks=0",
+          "UBSAN_OPTIONS": "halt_on_error=1"
+        },
+        "stdout": "a\n",
+        "status": 0,
+        "stderr": ""
+      }
+    ],
+    "interpretation": "All three leak-enabled exit cases exit 1 with Fontconfig LeakSanitizer reports (8839 bytes, 128 allocations); not a clean leak claim. Original-baseline query a/item a exits 1 with UBSan OOB at dmenu.c:303; current prints a, exits 0, and has empty stderr."
+  },
+  "initial_failed_attempts": {
+    "cause": "Xvfb stderr PIPE was not drained while resets emitted xkb warnings, filling pipe and blocking server. Recovery used -noreset and file-backed stderr.",
+    "records": "/tmp/dmenu-fuzzy-integration-mclmbvjk/gui/run-records.json",
+    "preserved_logs": "/tmp/dmenu-fuzzy-integration-mclmbvjk/gui/logs",
+    "preserved_outputs": "/tmp/dmenu-fuzzy-integration-mclmbvjk/gui/runs"
+  },
+  "limitations": [
+    "Original baseline full sanitizer suite omitted because that source has the known fuzzy overflow; sanitized full runs compare against corrected pre-preview baseline."
+  ]
+}

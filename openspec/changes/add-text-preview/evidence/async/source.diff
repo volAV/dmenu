@@ -1,0 +1,1538 @@
+--- a/dmenu.c
++++ b/dmenu.c
+@@ -2,13 +2,18 @@
+ #include <ctype.h>
+ #include <errno.h>
+ #include <limits.h>
++#include <fcntl.h>
+ #include <locale.h>
+ #include <math.h>
++#include <poll.h>
++#include <signal.h>
++#include <stdint.h>
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
+ #include <strings.h>
+ #include <time.h>
++#include <sys/wait.h>
+ #include <unistd.h>
+ 
+ #include <X11/Xlib.h>
+@@ -26,6 +31,7 @@
+ #define INTERSECT(x,y,w,h,r)  (MAX(0, MIN((x)+(w),(r).x_org+(r).width)  - MAX((x),(r).x_org)) \
+                              * MAX(0, MIN((y)+(h),(r).y_org+(r).height) - MAX((y),(r).y_org)))
+ #define TEXTW(X)              (drw_fontset_getwidth(drw, (X)) + lrpad)
++#define PREVIEWMAX           65536
+ 
+ /* enums */
+ enum { SchemeNorm, SchemeSel, SchemeOut, SchemeLast }; /* color schemes */
+@@ -61,6 +67,296 @@
+ static int (*fstrncmp)(const char *, const char *, size_t) = strncmp;
+ static char *(*fstrstr)(const char *, const char *) = strstr;
+ 
++enum { PreviewIdle, PreviewLoading, PreviewReady, PreviewEmpty,
++       PreviewUnavailable, PreviewTimeout, PreviewTruncated };
++static struct {
++	struct item *item;
++	unsigned long generation, running;
++	pid_t pid, pgid;
++	int input, output, state;
++	int64_t due, deadline;
++	size_t sent, inputlen, used;
++	char *buf;
++} preview = { .input = -1, .output = -1 };
++
++static void drawmenu(void);
++
++static int64_t
++previewtime(void)
++{
++	struct timespec ts;
++
++	if (clock_gettime(CLOCK_MONOTONIC, &ts) < 0)
++		die("clock_gettime:");
++	return (int64_t)ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
++}
++
++static void
++previewclose(int *fd)
++{
++	if (*fd >= 0)
++		close(*fd);
++	*fd = -1;
++}
++
++static void
++previewreap(void)
++{
++	pid_t pid;
++
++	if (!preview.pid)
++		return;
++	pid = waitpid(preview.pid, NULL, WNOHANG);
++	if (pid == preview.pid || (pid < 0 && errno == ECHILD))
++		preview.pid = 0;
++}
++
++static void
++previewstop(void)
++{
++	previewclose(&preview.input);
++	previewclose(&preview.output);
++	/* Signal before reaping: the unreaped leader pins our process-group ID. */
++	if (preview.pgid)
++		kill(-preview.pgid, SIGKILL);
++	else if (preview.pid)
++		kill(preview.pid, SIGKILL);
++	preview.pgid = 0;
++	preview.deadline = 0;
++	previewreap();
++}
++
++static void
++previewfail(int state)
++{
++	preview.state = state;
++	preview.used = 0;
++	preview.buf[0] = '\0';
++	previewstop();
++}
++
++static void
++previewselect(void)
++{
++	if (preview.item == sel)
++		return;
++	previewstop();
++	preview.item = sel;
++	preview.generation++;
++	preview.used = 0;
++	preview.buf[0] = '\0';
++	preview.state = sel ? PreviewLoading : PreviewIdle;
++	preview.due = sel ? previewtime() + 40 : 0;
++}
++
++static int
++previewfd(int fd)
++{
++	int copy;
++
++	if (fd < 0)
++		return -1;
++	if (fd < 3) {
++		copy = fcntl(fd, F_DUPFD_CLOEXEC, 3);
++		close(fd);
++		return copy;
++	}
++	if (fcntl(fd, F_SETFD, FD_CLOEXEC) < 0) {
++		close(fd);
++		return -1;
++	}
++	return fd;
++}
++
++static void
++previewstart(void)
++{
++	int in[2] = { -1, -1 }, out[2] = { -1, -1 }, nullfd = -1;
++	char *const argv[] = { previewcmd, NULL };
++	pid_t pid;
++
++	preview.due = 0;
++	preview.deadline = previewtime() + 1000;
++	if (pipe(in) < 0 || pipe(out) < 0)
++		goto fail;
++	in[0] = previewfd(in[0]);
++	in[1] = previewfd(in[1]);
++	out[0] = previewfd(out[0]);
++	out[1] = previewfd(out[1]);
++	nullfd = previewfd(open("/dev/null", O_RDWR | O_CLOEXEC));
++	if (in[0] < 0 || in[1] < 0 || out[0] < 0 || out[1] < 0 || nullfd < 0 ||
++	    fcntl(in[1], F_SETFL, O_NONBLOCK) < 0 ||
++	    fcntl(out[0], F_SETFL, O_NONBLOCK) < 0)
++		goto fail;
++	if ((pid = fork()) < 0)
++		goto fail;
++	if (!pid) {
++		if (setpgid(0, 0) < 0 || dup2(in[0], STDIN_FILENO) < 0 ||
++		    dup2(out[1], STDOUT_FILENO) < 0 || dup2(nullfd, STDERR_FILENO) < 0)
++			_exit(127);
++		closefrom(3);
++		signal(SIGPIPE, SIG_DFL);
++		signal(SIGCHLD, SIG_DFL);
++		execv(previewcmd, argv);
++		_exit(127);
++	}
++	preview.pid = pid;
++	if (setpgid(pid, pid) == 0 || errno == EACCES)
++		preview.pgid = pid;
++	else {
++		previewfail(PreviewUnavailable);
++		goto fail;
++	}
++	preview.input = in[1];
++	preview.output = out[0];
++	preview.sent = 0;
++	preview.inputlen = strlen(preview.item->text);
++	preview.running = preview.generation;
++	previewclose(&in[0]);
++	previewclose(&out[1]);
++	previewclose(&nullfd);
++	return;
++
++fail:
++	previewclose(&in[0]);
++	previewclose(&in[1]);
++	previewclose(&out[0]);
++	previewclose(&out[1]);
++	previewclose(&nullfd);
++	previewfail(PreviewUnavailable);
++}
++
++static void
++previewwrite(void)
++{
++	const char *data;
++	size_t n;
++	ssize_t written;
++
++	n = preview.inputlen - preview.sent;
++	if (preview.sent == preview.inputlen) {
++		data = "\n";
++		n = 1;
++	} else {
++		data = preview.item->text + preview.sent;
++		n = MIN(n, 4096);
++	}
++	written = write(preview.input, data, n);
++	if (written > 0) {
++		preview.sent += written;
++		if (preview.sent > preview.inputlen)
++			previewclose(&preview.input);
++	} else if (written < 0 && errno == EPIPE) {
++		/* A helper may finish without consuming its complete input. */
++		previewclose(&preview.input);
++	} else if (!written || (errno != EINTR && errno != EAGAIN)) {
++		previewfail(PreviewUnavailable);
++	}
++}
++
++static void
++previewread(void)
++{
++	char extra;
++	ssize_t n;
++
++	if (preview.used == PREVIEWMAX)
++		n = read(preview.output, &extra, 1);
++	else
++		n = read(preview.output, preview.buf + preview.used,
++		         MIN(PREVIEWMAX - preview.used, 4096));
++	if (n > 0) {
++		if (preview.used == PREVIEWMAX) {
++			preview.state = PreviewTruncated;
++			previewstop();
++		} else {
++			preview.used += n;
++			preview.buf[preview.used] = '\0';
++		}
++	} else if (!n) {
++		previewclose(&preview.output);
++	} else if (errno != EINTR && errno != EAGAIN) {
++		previewfail(PreviewUnavailable);
++	}
++}
++
++static void
++previewstep(void)
++{
++	siginfo_t info = {0};
++
++	if (preview.pid && !preview.deadline)
++		previewreap();
++	if (!preview.pid && preview.due && previewtime() >= preview.due)
++		previewstart();
++	if (!preview.deadline)
++		return;
++	if (previewtime() >= preview.deadline) {
++		previewfail(PreviewTimeout);
++		return;
++	}
++	/* Observe exit without releasing the PID until group teardown is sent. */
++	if (waitid(P_PID, preview.pid, &info, WEXITED | WNOHANG | WNOWAIT) < 0) {
++		if (errno != EINTR)
++			previewfail(PreviewUnavailable);
++		return;
++	}
++	if (info.si_pid && preview.input < 0 && preview.output < 0) {
++		if (preview.running != preview.generation) {
++			previewstop();
++		} else if (info.si_code != CLD_EXITED || info.si_status != 0) {
++			previewfail(PreviewUnavailable);
++		} else {
++			preview.state = preview.used ? PreviewReady : PreviewEmpty;
++			previewstop();
++		}
++	}
++}
++
++static void
++previewwait(void)
++{
++	struct pollfd fds[3];
++	int state, timeout = -1, result;
++	int64_t now;
++
++	state = preview.state;
++	previewstep();
++	if (state != preview.state)
++		drawmenu();
++	now = previewtime();
++	if (preview.pid)
++		timeout = 20;
++	if (preview.deadline)
++		timeout = MIN(timeout, MAX(0, preview.deadline - now));
++	else if (!preview.pid && preview.due)
++		timeout = MAX(0, preview.due - now);
++	if (XPending(dpy))
++		timeout = 0;
++	fds[0] = (struct pollfd){ ConnectionNumber(dpy), POLLIN, 0 };
++	fds[1] = (struct pollfd){ preview.input, POLLOUT, 0 };
++	fds[2] = (struct pollfd){ preview.output, POLLIN, 0 };
++	XFlush(dpy);
++	result = poll(fds, LENGTH(fds), timeout);
++	if (result < 0) {
++		if (errno != EINTR) {
++			previewfail(PreviewUnavailable);
++			drawmenu();
++		}
++		return;
++	}
++	state = preview.state;
++	if ((fds[1].revents | fds[2].revents) & POLLNVAL)
++		previewfail(PreviewUnavailable);
++	if (preview.input >= 0 && (fds[1].revents & (POLLOUT | POLLHUP | POLLERR)))
++		previewwrite();
++	if (preview.output >= 0 && (fds[2].revents & (POLLIN | POLLHUP | POLLERR)))
++		previewread();
++	previewstep();
++	if (state != preview.state)
++		drawmenu();
++}
++
+ static unsigned int
+ textw_clamp(const char *str, unsigned int n)
+ {
+@@ -105,6 +401,11 @@
+ 	size_t i;
+ 
+ 	XUngrabKeyboard(dpy, CurrentTime);
++	if (previewcmd) {
++		XFlush(dpy);
++		previewstop();
++		free(preview.buf);
++	}
+ 	for (i = 0; i < SchemeLast; i++)
+ 		drw_scm_free(drw, scheme[i], 2);
+ 	for (i = 0; items && items[i].text; ++i)
+@@ -149,44 +450,33 @@
+ static void
+ drawpreview(void)
+ {
++	static const char *states[] = {
++		"", "Loading", "", "No preview", "Unavailable", "Timed out", "Truncated"
++	};
+ 	int x = itemw + 1;
+-#ifdef DMENU_PREVIEW_FIXTURE
+-	/* Development-only text, keyed by original item position, never by label. */
+-	static const char *fixture[][7] = {
+-		{ "Short synthetic preview." },
+-		{
+-			"Multiline synthetic clipboard entry",
+-			"First paragraph: a longer note for the selected item.",
+-			"",
+-			"Second paragraph after a preserved blank line.",
+-			"This is another line in the same paragraph.",
+-			"",
+-			"Final paragraph of the synthetic note."
+-		},
+-		{
+-			"Unicode synthetic sample",
+-			"Café — naïve — Ελληνικά",
+-			"日本語: こんにちは",
+-			"UTF-8 text remains separate from the selected label."
+-		}
+-	};
+-	size_t index;
+-	unsigned int i;
+-#endif
++	unsigned int row, count;
++	size_t offset = 0, length;
++	char *end, saved;
+ 
+ 	drw_setscheme(drw, scheme[SchemeNorm]);
+ 	drw_rect(drw, itemw, bh, 1, mh - bh, 1, 0);
+-	if (!sel)
++	if (!sel || preview.item != sel)
+ 		return;
+-#ifdef DMENU_PREVIEW_FIXTURE
+-	index = (size_t)(sel - items) % LENGTH(fixture);
+-	for (i = 0; i < LENGTH(fixture[index]) && i < lines && fixture[index][i]; i++)
+-		drw_text(drw, x, (i + 1) * bh, mw - x, bh,
+-		         lrpad / 2, fixture[index][i], 0);
+-#else
+-	drw_text(drw, x, bh, mw - x, bh, lrpad / 2,
+-	         "Preview UI checkpoint: helper execution disabled", 0);
+-#endif
++	count = lines > 1 ? lines - 1 : (preview.state == PreviewReady);
++	if (preview.state == PreviewReady || preview.state == PreviewTruncated)
++		for (row = 0; row < count && offset < preview.used; row++) {
++			end = memchr(preview.buf + offset, '\n', preview.used - offset);
++			length = end ? (size_t)(end - preview.buf) : preview.used;
++			saved = preview.buf[length];
++			preview.buf[length] = '\0';
++			drw_text(drw, x, (row + 1) * bh, mw - x, bh,
++			         lrpad / 2, preview.buf + offset, 0);
++			preview.buf[length] = saved;
++			offset = length + 1;
++		}
++	if (preview.state != PreviewReady)
++		drw_text(drw, x, lines * bh, mw - x, bh, lrpad / 2,
++		         states[preview.state], 0);
+ }
+ 
+ static void
+@@ -195,6 +485,8 @@
+ 	unsigned int curpos;
+ 	struct item *item;
+ 	int x = 0, y = 0, w;
++	if (previewcmd)
++		previewselect();
+ 
+ 	drw_setscheme(drw, scheme[SchemeNorm]);
+ 	drw_rect(drw, 0, 0, mw, mh, 1, 1);
+@@ -711,8 +1003,18 @@
+ run(void)
+ {
+ 	XEvent ev;
+-
+-	while (!XNextEvent(dpy, &ev)) {
++	unsigned int batch = 0;
++
++	for (;;) {
++		if (previewcmd && (batch == 64 || !XPending(dpy))) {
++			previewwait();
++			batch = 0;
++			continue;
++		}
++		if (XNextEvent(dpy, &ev))
++			break;
++		if (previewcmd)
++			batch++;
+ 		if (XFilterEvent(&ev, win))
+ 			continue;
+ 		switch(ev.type) {
+@@ -837,6 +1139,8 @@
+ 	swa.override_redirect = True;
+ 	swa.background_pixel = scheme[SchemeNorm][ColBg].pixel;
+ 	swa.event_mask = ExposureMask | KeyPressMask | VisibilityChangeMask;
++	if (previewcmd)
++		swa.event_mask |= StructureNotifyMask;
+ 	win = XCreateWindow(dpy, root, x, y, mw, mh, 0,
+ 	                    CopyFromParent, CopyFromParent, CopyFromParent,
+ 	                    CWOverrideRedirect | CWBackPixel | CWEventMask, &swa);
+@@ -870,7 +1174,7 @@
+ {
+ 	die("usage: dmenu [-bFfiv] [-l lines] [-p prompt] [-P /helper] [-fn font] [-m monitor]\n"
+ 	    "             [-nb color] [-nf color] [-sb color] [-sf color] [-w windowid]\n"
+-	    "       -P requires a positive -l; this checkpoint does not execute helpers");
++	    "       -P requires an absolute executable path and a positive -l");
+ }
+ 
+ int
+@@ -937,6 +1241,11 @@
+ 		lines = atoi(linearg);
+ 	}
+ 
++	if (previewcmd) {
++		preview.buf = ecalloc(PREVIEWMAX + 1, 1);
++		signal(SIGPIPE, SIG_IGN);
++		signal(SIGCHLD, SIG_DFL);
++	}
+ 	if (!setlocale(LC_CTYPE, "") || !XSupportsLocale())
+ 		fputs("warning: no locale support\n", stderr);
+ 	if (!(dpy = XOpenDisplay(NULL)))
+@@ -954,7 +1263,7 @@
+ 	lrpad = drw->fonts->h;
+ 
+ #ifdef __OpenBSD__
+-	if (pledge("stdio rpath", NULL) == -1)
++	if (pledge(previewcmd ? "stdio rpath proc exec" : "stdio rpath", NULL) == -1)
+ 		die("pledge");
+ #endif
+ 
+--- a/dmenu.1
++++ b/dmenu.1
+@@ -67,22 +67,43 @@
+ defines the prompt to be displayed to the left of the input field.
+ .TP
+ .BI \-P " /helper"
+-enables the preview UI checkpoint, requiring an absolute helper path and an
+-explicit positive decimal
++enables asynchronous text previews from the absolute executable path supplied,
++requiring an explicit positive decimal
+ .BR \-l .
+ The input spans the window above an approximately 40% item column and 60%
+ preview column. Body height does not shrink with the item count; rows are
+ clamped to the available screen or embedding window. Unreadable dimensions
+ are rejected.
+ .IP
+-This checkpoint does not execute helpers. The normal build displays a
+-checkpoint notice, not clipboard content. A development build compiled with
+-.B DMENU_PREVIEW_FIXTURE
+-instead displays fixed synthetic multiline text for GUI verification.
+-Neither build changes selected labels on stdout. Without
++The helper is executed directly, without a shell or additional arguments.
++Its stdin receives the unchanged selected label followed by one newline and
++then EOF. Its stdout supplies preview text; stderr is discarded.
++Treat the helper as trusted local code, not a sandbox. Labels and preview
++data are never placed in command arguments, environment variables or diagnostics.
++.IP
++Selection changes debounce for 40 milliseconds and cancel obsolete work.
++The 1000 millisecond monotonic deadline covers execution, stdin delivery,
++stdout collection and process completion. Successful output is published only
++after stdout EOF and exit status 0. Empty output shows No preview; execution
++errors and nonzero exits show Unavailable; deadline expiry shows Timed out.
++.IP
++The output limit is 65536 bytes. Exactly that many bytes completed successfully
++are not truncated. Detecting an additional byte retains the prefix and shows
++Truncated even after the menu kills the producer. Loading and terminal states
++occupy a fixed footer row; text uses the preceding body rows. With one body
++row, a successful preview uses that row and other states display their status.
++.IP
++Only the latest selected item owns a result. Cancellation sends SIGKILL to the
++owned helper group and closes pipes without blocking for exit. Cooperative
++descendants are included; descendants intentionally leaving the group are not
++contained. Keyboard release and menu exit never wait for helper termination.
++.IP
++This checkpoint clips lines and shows only the visible prefix. Final text
++sanitization, soft wrapping, scrolling and clipboard integration are not yet
++implemented. Enter still outputs the original label, never preview content.
++Without
+ .BR \-P ,
+-the existing menu behavior is retained. Helper output, wrapping, scrolling
+-and clipboard integration are not implemented at this checkpoint.
++the existing menu execution and appearance remain unchanged.
+ .TP
+ .BI \-fn " font"
+ defines the font or font set used.
+--- a/README
++++ b/README
+@@ -24,56 +24,78 @@
+ See the man page for details.
+ 
+ 
+-Preview UI checkpoint (development only)
+-----------------------------------------
+-The optional `-P /absolute/helper -l 12` currently validates the CLI and
+-draws a 40/60 split below the input. It does not run the helper. A normal
+-build displays an explicit checkpoint notice, not a working preview.
+-Matching, selected-label output and cancellation retain their existing
+-semantics. Do not install this checkpoint over a working dmenu.
++Asynchronous preview checkpoint (development only)
++-------------------------------------------------
++`-P /absolute/helper -l 12` runs a trusted executable directly and draws its
++text in the approved 40/60 split below the search input. The helper receives
++the unchanged selected label plus LF through stdin, then EOF. Its argv has
++only the executable path; stdout is preview data and stderr goes to /dev/null.
++No clipboard text is evaluated as a command or added to the environment.
+ 
+-Build in a disposable directory to preserve local configuration, binaries
+-and object files:
++One request owns a helper process group. Selection changes cancel obsolete
++work and debounce for 40 ms. A 1000 ms monotonic deadline covers execution,
++stdin delivery, stdout collection and process completion. Output is capped
++at 65536 bytes; an observed extra byte fixes the result as Truncated even
++after producer termination. Exact-limit successful completion is not truncated.
++The other fixed states are Loading, No preview, Unavailable and Timed out.
++Successful output waits for EOF and exit 0; ordinary nonzero exit discards it.
+ 
+-    work=$(mktemp -d /tmp/dmenu-preview-ui.XXXXXX)
++Pipe I/O, poll-based X11 servicing and reaping are nonblocking. SIGKILL is sent
++to the owned group before releasing its leader PID; process disappearance is
++eventual, not an exit-time wait. Intentionally escaped descendants are outside
++containment guarantees. This is not a sandbox for hostile helper executables.
++Without `-P`, dmenu still blocks in XNextEvent without preview allocations,
++children or periodic polling.
++
++The last body row is reserved for status; preceding rows display clipped
++newline-separated output. With one body row, Ready displays its first line
++and other states display status. Final UTF-8/control sanitization, wrapping,
++scrolling and clipmenu integration are not implemented. Do not deploy this
++checkpoint as a finished clipboard UI or replace a working installed dmenu.
++
++Build and test only disposable source copies, preserving configuration and
++existing binaries/objects:
++
++    work=$(mktemp -d /tmp/dmenu-preview-async.XXXXXX)
+     cp Makefile config.mk *.c *.h "$work/"
+-    make -C "$work" CC='cc -Wextra -DDMENU_PREVIEW_FIXTURE'
++    make -C "$work" CC='cc -Wextra'
++    cat > "$work/preview" <<'EOF'
++    #!/bin/sh
++    IFS= read -r label || exit 1
++    printf 'Synthetic preview\n\nSelected label:\n%s\n' "$label"
++    EOF
++    chmod 700 "$work/preview"
+ 
+-`DMENU_PREVIEW_FIXTURE` is temporary compile-time test instrumentation:
+-only that build displays synthetic text keyed by the original item position:
+-a short note, a longer multiline note with blank lines, then a Unicode sample
+-(repeating for further items). It is not a CLI
+-option, environment hook, helper protocol or production fallback. The
+-fixture and checkpoint notice must be removed when real helper results
+-are connected in the later, separately approved implementation stage.
+-
+-Run only on a disposable Xvfb/Xephyr display, never on the working desktop:
++Remove the four spaces of Markdown indentation when entering the heredoc.
++Use only a disposable Xvfb/Xephyr display, never the working desktop:
+ 
+     printf 'alpha\nbeta\ngamma\n' |
+-        DISPLAY=:ISOLATED "$work/dmenu" -i -l 12 -p Preview -P /synthetic
++        DISPLAY=:ISOLATED "$work/dmenu" -i -l 12 -p Preview -P "$work/preview"
+ 
+-Replace `:ISOLATED` with the display allocated by that isolated server;
+-`/synthetic` is a literal unused absolute path, not an executable to run.
+-Use Up/Down and filtering to inspect the selected highlight and stable
+-layout, Return to emit the original selected label, and Escape to cancel.
+-Long preview lines are clipped; wrapping, scrolling, process management
+-and clipmenu integration are deliberately outside this checkpoint.
++Replace `:ISOLATED` with the display allocated by that isolated server. Enter,
++Shift-Return, Ctrl-Return and Escape retain the existing output/exit contracts.
++No installation or PATH modification is needed.
+ 
+-The focused `tests/preview-checkpoint.py` check accepts baseline, normal
+-and fixture binaries and an explicit isolated-display confirmation; see
+-its `--help`. It uses synthetic data only and writes screenshots to a
+-caller-selected output directory. Xvfb/Xephyr and existing X11 screenshot
+-tools are verification tools, not new application dependencies.
++`python3 tests/preview-checkpoint.py --baseline /absolute/baseline/dmenu
++--binary /absolute/new/dmenu --output /tmp/preview-results --isolated-display`
++(one command, with DISPLAY set to the owned isolated server) runs synthetic
++executable helpers and actual keyboard/pixel/resource checks. See `--help`
++for focused sanitizer runs. Xvfb/Xephyr, xdotool, xwininfo and ImageMagick are
++verification tools, not application dependencies.
+ 
+-Preview-content checks inspect pixels strictly inside the right pane:
+-nonblank text, selection-dependent changes, blank lines, and clearing on
+-zero matches. The older highlight check assumes the default color scheme;
+-row positions are inferred from the measured menu height, not a fixed font.
+-Run this harness with default-config normal/fixture builds and the same
+-fonts/display for the baseline. It is not a custom-theme screenshot test.
++The older highlight check assumes default colors; row positions come from
++actual geometry. Preview-content checks use same-run pixel variation rather
++than fixed glyph hashes. Use matching baseline/current configuration and fonts,
++not custom themes, for the screenshot comparisons.
+ 
+-Retained synthetic screenshots and the executed regression log are in
+-`openspec/changes/add-text-preview/evidence/`: `gui-checkpoint.png` is the
+-1920x1080 isolated desktop with three entries and the multiline selection;
+-`gui-checkpoint-unicode.png` shows the Unicode selection. These are review
+-artifacts, not clipboard captures.
++Approved earlier GUI screenshots and logs remain unchanged under
++`openspec/changes/add-text-preview/evidence/`. Their compile-time fixture and
++checkpoint notice have been removed from the application; synthetic content
++now comes exclusively from executable test helpers.
++
++Async-checkpoint source delta, screenshots and executable verification results
++are retained under `openspec/changes/add-text-preview/evidence/async/`.
++Known baseline sanitizer limitations are recorded there: fuzzy filtering triggers
++an existing ASan heap-buffer-overflow, and baseline/current token-mode exits
++report Fontconfig leaks. Do not suppress those findings or claim an ASan-clean
++build. `--helpers-only --token-mode` supports focused UBSan lifecycle checks.
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -88,20 +88,23 @@
+ isolated cache/PATH and benign inputs. For install changes, stage installation
+ and inspect binaries/scripts and manuals rather than overwriting host files.
+ 
+-The `add-text-preview` implementation is authorized only through its first GUI
+-checkpoint. `-P /absolute/helper` requires an explicit positive decimal `-l`;
+-the helper is not executed yet. Normal builds display a checkpoint notice.
+-Only a build with `CC='cc -Wextra -DDMENU_PREVIEW_FIXTURE'` contains the fixed
+-synthetic multiline text. Keep that temporary instrumentation isolated from
+-production and remove it when the later helper integration is authorized.
++The `add-text-preview` implementation is authorized through the asynchronous
++helper lifecycle checkpoint, not final text rendering, scrolling or clipmenu.
++`-P /absolute/helper` requires an explicit positive decimal `-l`. The executable
++receives the selected label plus LF on stdin; argv/environment never carry it.
++The single helper group uses nonblocking I/O, 40 ms debounce, a 1000 ms deadline
++and 65536-byte cap. Overflow takes precedence over forced producer failure.
++Exit releases the keyboard without waiting for group termination. Trusted
++helpers must not deliberately escape the group; this is not a sandbox.
+ 
+-Build baseline, normal and fixture binaries in disposable source copies so
+-the current `config.h`, binaries and objects remain untouched. Run the focused
+-check with `python3 tests/preview-checkpoint.py --baseline /absolute/baseline
+---binary /absolute/normal --fixture /absolute/fixture --output /tmp/screenshots
+---isolated-display` (one shell command), with `DISPLAY` set to an owned disposable
+-Xvfb/Xephyr server. It requires xdotool, xwininfo and ImageMagick import/convert;
+-never point it at the working desktop or real clipboard. No install is needed.
++The compile-time fixture is removed. Preserve the prior GUI evidence and use
++executable synthetic test helpers instead. Build baseline and current binaries
++in disposable source copies so local configuration, binaries and objects remain
++untouched. Run `python3 tests/preview-checkpoint.py --baseline /absolute/baseline
++--binary /absolute/new --output /tmp/screenshots --isolated-display` as one command,
++with DISPLAY set only to an owned disposable Xvfb/Xephyr server. Tests use xdotool,
++xwininfo and ImageMagick; never point them at real history or the working desktop.
++Do not install this checkpoint; full sanitization/wrapping/scrolling remain pending.
+ 
+ 
+ Keep CLI/help/manual and compile-time defaults consistent with behavior changes.
+--- a/tests/preview-checkpoint.py
++++ b/tests/preview-checkpoint.py
+@@ -1,10 +1,13 @@
+ #!/usr/bin/env python3
+-"""Compare dmenu's no-preview behavior and exercise the synthetic preview checkpoint."""
++"""Compare no-preview behavior and exercise the real async preview-helper protocol."""
+ import argparse
+ import ctypes
++import hashlib
++import json
+ import os
+ import re
+ import shutil
++import signal
+ import subprocess
+ import sys
+ import tempfile
+@@ -12,10 +15,97 @@
+ from pathlib import Path
+ 
+ TIMEOUT = 5
+-
++HELPER_SOURCE = r'''#!{python}
++import hashlib, json, os, subprocess, sys, time
++mode = os.environ.get("PREVIEW_MODE", "content")
++def extra_fds():
++    result = []
++    for fd in os.listdir("/proc/self/fd"):
++        if fd not in ("0", "1", "2"):
++            try:
++                os.readlink("/proc/self/fd/" + fd)
++                result.append(fd)
++            except FileNotFoundError:
++                pass
++    return result
++line = sys.stdin.buffer.readline() if mode not in ("no-read", "partial-input", "early-success") else b""
++label = line[:-1].decode("utf-8", "replace") if line.endswith(b"\n") else line.decode("utf-8", "replace")
++stdin_line_ends_lf = line.endswith(b"\n")
++stdin_eof = sys.stdin.buffer.read(1) == b"" if mode not in ("no-read", "partial-input", "early-success") else False
++env_digest = hashlib.sha256(json.dumps(sorted(os.environ.items()), separators=(",", ":")).encode()).hexdigest()
++record = {{"argv": sys.argv, "label": label, "stdin_line_ends_lf": stdin_line_ends_lf, "stdin_eof": stdin_eof, "environment": sorted(os.environ), "environment_digest": env_digest, "label_in_environment": any(label and label in value for value in os.environ.values()), "extra_fds": extra_fds(), "stderr_target": os.readlink("/proc/self/fd/2"), "pid": os.getpid(), "pgid": os.getpgrp()}}
++with open(os.environ["PREVIEW_LOG"], "a", encoding="utf-8") as log:
++    log.write(json.dumps(record, ensure_ascii=False) + "\n")
++    log.flush()
++os.write(2, b"synthetic stderr must be discarded\n")
++if mode == "no-read":
++    time.sleep(2)
++elif mode == "partial-input":
++    sys.stdin.buffer.read(1)
++    os.close(0)
++    sys.stdout.write("partial input\n")
++    sys.exit(7)
++elif mode == "early-success":
++    os.close(0)
++    sys.stdout.write("early success\n")
++elif mode == "delay-output":
++    time.sleep(.5)
++    sys.stdout.write("delayed\n")
++elif mode == "delay-exit":
++    sys.stdout.write("finished\n")
++    sys.stdout.flush()
++    time.sleep(.2)
++elif mode == "stale":
++    time.sleep(.25)
++    sys.stdout.write({{"blue": "Unicode λ雪🙂\n", "red": "red preview\n", "green": "green preview\n"}}.get(label, label))
++elif mode == "close-stdout":
++    sys.stdout.write("closed\n")
++    sys.stdout.flush()
++    os.close(1)
++    time.sleep(2)
++elif mode == "unlimited":
++    while True:
++        os.write(1, b"x" * 4096)
++elif mode == "nonzero":
++    sys.stdout.write("discard me\n")
++    sys.exit(7)
++elif mode == "empty":
++    pass
++elif mode == "truncate":
++    sys.stdout.buffer.write(b"x" * int(os.environ["PREVIEW_BYTES"]))
++    sys.stdout.buffer.flush()
++    sys.exit(int(os.environ.get("PREVIEW_EXIT", "0")))
++elif mode == "descendant-pipe":
++    subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"])
++    sys.stdout.write("leader\n")
++elif mode == "descendant-exit":
++    child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"],
++                             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
++    sys.stdout.write("leader\n")
++    sys.stdout.flush()
++elif mode == "content":
++    outputs = {{
++        "alpha": "Alpha preview\nsecond line\n\nparagraph\n",
++        "βeta": "Unicode λ雪🙂\n",
++        "white space;$(touch nope)": "Literal label\n",
++        "No preview": "No preview\n",
++        "Unavailable": "Unavailable\n",
++        "Timed out": "Timed out\n",
++        "Truncated": "Truncated\n",
++        "Loading": "Loading\n",
++        "row-label": "first line\nsecond line\n",
++        "first line": "first line\n",
++        "red": "red preview\n",
++        "green": "Green preview\nsecond line\n\nparagraph\n",
++        "blue": "Unicode λ雪🙂\n",
++        "x": "x preview\n",
++    }}
++    sys.stdout.write(outputs.get(label, "selected: " + label + "\n"))
++
++'''
+ 
+ RESULTS = []
+-
++FIXTURE_LOGS = set()
+ class CheckFailure(Exception):
+     pass
+ 
+@@ -48,8 +138,64 @@
+         raise CheckFailure(line)
+ 
+ 
++
++
++def make_helper(path):
++    path.write_text(HELPER_SOURCE.format(python=sys.executable), encoding="utf-8")
++    path.chmod(0o700)
++
++
++def helper_env(base, log, mode="content", **extra):
++    FIXTURE_LOGS.add(str(log))
++    return {**base, "PREVIEW_LOG": str(log), "PREVIEW_MODE": mode,
++            **{key: str(value) for key, value in extra.items()}}
++
++
++def read_log(path):
++    if not path.exists():
++        return []
++    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
++def cleanup_helper_group(env):
++    log = env.get("PREVIEW_LOG")
++    if not log or log not in FIXTURE_LOGS:
++        return
++    records = read_log(Path(log))
++    if not records:
++        return
++    pgid = records[-1]["pgid"]
++    if pgid <= 1 or pgid == os.getpgrp():
++        return
++    for entry in Path("/proc").iterdir():
++        if entry.name.isdigit():
++            try:
++                if int((entry / "stat").read_text().split()[4]) == pgid:
++                    os.killpg(pgid, signal.SIGKILL)
++                    return
++            except (FileNotFoundError, ProcessLookupError, PermissionError, ValueError):
++                pass
++
++
++def observe_group(pgid):
++    """Allow up to two seconds for cooperative termination, not instant absence."""
++    deadline = time.monotonic() + 2
++    while True:
++        live, zombies = [], []
++        for entry in Path("/proc").iterdir():
++            if not entry.name.isdigit():
++                continue
++            try:
++                fields = (entry / "stat").read_text().rsplit(")", 1)[1].split()
++                if int(fields[2]) == pgid:
++                    (zombies if fields[0] == "Z" else live).append(int(entry.name))
++            except (FileNotFoundError, ProcessLookupError, PermissionError, ValueError):
++                pass
++        if not live or time.monotonic() >= deadline:
++            return live, zombies
++        time.sleep(.02)
++
++
+ class Menu:
+-    def __init__(self, executable, args, data, env):
++    def __init__(self, executable, args, data, env, inherited_fd=None):
+         self.stdout = tempfile.TemporaryFile()
+         self.stderr = tempfile.TemporaryFile()
+         self.input = tempfile.TemporaryFile()
+@@ -57,7 +203,9 @@
+         self.input.seek(0)
+         self.process = subprocess.Popen([executable, *args], stdin=self.input,
+                                         stdout=self.stdout, stderr=self.stderr, env=env,
+-                                        start_new_session=True)
++                                        start_new_session=True,
++                                        pass_fds=() if inherited_fd is None else (inherited_fd,))
++        self.env = env
+         self.window = None
+ 
+     def wait_window(self):
+@@ -118,10 +266,11 @@
+                 pass
+         for file in (self.input, self.stdout, self.stderr):
+             file.close()
+-
+-
+-def invoke(executable, args, data, env):
+-    menu = Menu(executable, args, data, env)
++        cleanup_helper_group(self.env)
++
++
++def invoke(executable, args, data, env, inherited_fd=None):
++    menu = Menu(executable, args, data, env, inherited_fd)
+     try:
+         menu.wait_window()
+         return menu
+@@ -167,25 +316,448 @@
+     return xlib, display, window
+ 
+ 
++def protocol_cases(binary, helper, output, base_env, token_mode=False):
++    menu_options = ["-F"] if token_mode else []
++    env_log = output / "protocol.jsonl"
++    reference = invoke(str(binary), [*menu_options, "-P", str(helper), "-l", "5"], b"No preview\n",
++                       helper_env(base_env, env_log))
++    try:
++        time.sleep(.15)
++        reference_image = output / "status-reference.png"
++        reference.screenshot(reference_image)
++        geometry = reference.info()
++    finally:
++        reference.close()
++    row = geometry["Height"] // 6
++    pane = (geometry["Width"] - 1) * 2 // 5 + 1
++    reference_blank = region_signature(reference_image, pane, row * 5,
++                                       geometry["Width"] - pane, row)[1]
++    word_signatures = {}
++    for word in ("No preview", "Unavailable", "Timed out", "Truncated", "Loading"):
++        ref = invoke(str(binary), [*menu_options, "-P", str(helper), "-l", "5"], (word + "\n").encode(),
++                     helper_env(base_env, env_log))
++        try:
++            image = output / f"status-word-{word.replace(' ', '-')}.png"
++            time.sleep(.15)
++            ref.screenshot(image)
++            word_signatures[word] = region_signature(image, pane, row, geometry["Width"] - pane, row)[1]
++        finally:
++            ref.close()
++
++    statuses = [("empty", "No preview", {}), ("nonzero", "Unavailable", {}),
++                ("no-read", "Timed out", {}), ("partial-input", "Unavailable", {}),
++                ("close-stdout", "Timed out", {}), ("descendant-pipe", "Timed out", {}),
++                ("descendant-exit", "", {}), ("early-success", "", {}),
++                ("unlimited", "Truncated", {})]
++    for index, (mode, word, extra) in enumerate(statuses):
++        log = output / f"{mode}.jsonl"
++        large = (b"target-" + b"q" * 100000 + b"\n") if mode in ("no-read", "partial-input", "early-success") else b"target\n"
++        menu = invoke(str(binary), [*menu_options, "-P", str(helper), "-l", "5"], large,
++                      helper_env(base_env, log, mode, **extra))
++        try:
++            image = output / f"status-{index}-{mode}.png"
++            time.sleep(1.15 if word == "Timed out" or mode == "unlimited" else .15)
++            menu.screenshot(image)
++            actual = region_signature(image, pane, row * 5, geometry["Width"] - pane, row)[1]
++            expected = word_signatures[word] if word else reference_blank
++            report(f"helper-status-{mode}", actual == expected,
++                   f"footer matches {word or 'successful blank state'}; screenshot={image}")
++            visible, _ = region_signature(image, pane, row, geometry["Width"] - pane, row * 4)
++            require((visible > 0) == (not word or word == "Truncated"),
++                    f"{mode} incorrectly published/discarded partial output")
++            require(not menu.stderr_text(), f"{mode} leaked helper stderr into menu diagnostics")
++            if mode == "no-read":
++                records = read_log(log)
++                require(records and len(records[0]["argv"]) == 1 and
++                        Path(records[0]["argv"][0]) == helper,
++                        f"helper argv was not executable-only: {records}")
++            if mode in ("descendant-pipe", "descendant-exit"):
++                records = read_log(log)
++                require(records, f"{mode} helper did not record its process group")
++                pgid = records[-1]["pgid"]
++                live, zombies = observe_group(pgid)
++                require(not live, f"{mode} process group {pgid} still has live members: {live}")
++                report(f"helper-group-termination-{mode}", True,
++                       f"no live group members after observation; zombies={zombies}")
++        finally:
++            menu.close()
++
++    for size, exit_status in ((65535, 0), (65536, 0), (65537, 0), (65537, 7), (65536, 7)):
++        log = output / f"bytes-{size}-exit-{exit_status}.jsonl"
++        menu = invoke(str(binary), [*menu_options, "-P", str(helper), "-l", "5"], b"target\n",
++                      helper_env(base_env, log, "truncate", PREVIEW_BYTES=size, PREVIEW_EXIT=exit_status))
++        try:
++            image = output / f"status-bytes-{size}-exit-{exit_status}.png"
++            time.sleep(.15)
++            menu.screenshot(image)
++            actual = region_signature(image, pane, row * 5, geometry["Width"] - pane, row)[1]
++            expected = (word_signatures["Truncated"] if size > 65536 else
++                        word_signatures["Unavailable"] if exit_status else reference_blank)
++            require(actual == expected,
++                    f"{size}-byte output with exit {exit_status} has incorrect terminal state")
++            report(f"helper-output-{size}-bytes-exit-{exit_status}", True,
++                   f"terminal-state precedence verified; screenshot={image}")
++        finally:
++            menu.close()
++    first_line_ref = invoke(str(binary), [*menu_options, "-P", str(helper), "-l", "1"],
++                            b"first line\n", helper_env(base_env, output / "one-row-first.jsonl"))
++    try:
++        time.sleep(.15)
++        one_geometry = first_line_ref.info()
++        one_row = one_geometry["Height"] // 2
++        pane_x = (one_geometry["Width"] - 1) * 2 // 5 + 1
++        first_image = output / "one-row-first.png"
++        first_line_ref.screenshot(first_image)
++        first_pixels = region_signature(first_image, pane_x, one_row,
++                                        one_geometry["Width"] - pane_x, one_row)[1]
++    finally:
++        first_line_ref.close()
++    multiline = invoke(str(binary), [*menu_options, "-P", str(helper), "-l", "1"],
++                       b"row-label\n", helper_env(base_env, output / "one-row-multiline.jsonl"))
++    try:
++        time.sleep(.15)
++        image = output / "one-row-multiline.png"
++        multiline.screenshot(image)
++        actual = region_signature(image, pane_x, one_row,
++                                  one_geometry["Width"] - pane_x, one_row)[1]
++        require(multiline.info()["Height"] == one_geometry["Height"] and actual == first_pixels,
++                "single-row Ready preview did not clip to its first content line")
++        report("helper-single-row-ready", True, f"first line rendered; screenshot={image}")
++    finally:
++        multiline.close()
++    status_ref = invoke(str(binary), [*menu_options, "-P", str(helper), "-l", "1"],
++                        b"No preview\n", helper_env(base_env, output / "one-row-status-ref.jsonl"))
++    try:
++        time.sleep(.15)
++        image = output / "one-row-status-reference.png"
++        status_ref.screenshot(image)
++        status_pixels = region_signature(image, pane_x, one_row,
++                                         one_geometry["Width"] - pane_x, one_row)[1]
++    finally:
++        status_ref.close()
++    empty_one = invoke(str(binary), [*menu_options, "-P", str(helper), "-l", "1"],
++                       b"target\n", helper_env(base_env, output / "one-row-empty.jsonl", "empty"))
++    try:
++        time.sleep(.15)
++        image = output / "one-row-empty.png"
++        empty_one.screenshot(image)
++        actual = region_signature(image, pane_x, one_row,
++                                  one_geometry["Width"] - pane_x, one_row)[1]
++        require(actual == status_pixels, "single-row empty state did not display only No preview")
++        report("helper-single-row-status", True, f"No preview status rendered; screenshot={image}")
++    finally:
++        empty_one.close()
++
++    # A missing, non-executable, and non-shebang helper must be ordinary Unavailable states.
++    for name, content, executable in (("missing", None, False), ("nonexec", "pass\n", False),
++                                       ("no-shebang", "printf 'forbidden shell fallback\\n'\nexit 0\n", True)):
++        candidate = output / f"helper-{name}"
++        if content is not None:
++            candidate.write_text(content, encoding="utf-8")
++            candidate.chmod(0o700 if executable else 0o600)
++        badenv = helper_env(base_env, output / f"{name}.jsonl")
++        menu = invoke(str(binary), ["-P", str(candidate), "-l", "5"], b"target\n", badenv)
++        try:
++            time.sleep(.15)
++            image = output / f"status-{name}.png"
++            menu.screenshot(image)
++            actual = region_signature(image, pane, row * 5, geometry["Width"] - pane, row)[1]
++            require(actual == word_signatures["Unavailable"],
++                    f"{name} executable did not render Unavailable status")
++            report(f"helper-{name}-failure", True, f"footer=Unavailable; screenshot={image}")
++        finally:
++            menu.close()
++
++    # Direct-exec protocol preserves the selected bytes, passes no argv, and does not export it.
++    private = " \tCafé white space;$(touch nope)  "
++    private_log = output / "privacy.jsonl"
++    inherited_fd = os.open(output / "inherited-descriptor", os.O_CREAT | os.O_RDWR, 0o600)
++    menu = invoke(str(binary), [*menu_options, "-P", str(helper), "-l", "5"], (private + "\n").encode(),
++                  helper_env(base_env, private_log), inherited_fd=inherited_fd)
++    try:
++        time.sleep(.15)
++        records = read_log(private_log)
++        require(records and records[-1]["argv"] == [str(helper)] and records[-1]["label"] == private,
++                f"helper argv/stdin protocol mismatch: {records}")
++        require(records[-1]["stdin_line_ends_lf"] and records[-1]["stdin_eof"],
++                f"helper stdin did not contain one LF-terminated label followed by EOF: {records[-1]}")
++        require(not records[-1]["label_in_environment"] and records[-1]["extra_fds"] == [],
++                f"selected content leaked or an unexpected fd was inherited: {records[-1]}")
++        expected_env = helper_env(base_env, private_log)
++        expected_digest = hashlib.sha256(json.dumps(sorted(expected_env.items()),
++                                                    separators=(",", ":")).encode()).hexdigest()
++        require(records[-1]["environment_digest"] == expected_digest and
++                records[-1]["stderr_target"] == "/dev/null",
++                f"helper environment or stderr inheritance mismatch: {records[-1]}")
++        image = output / "literal-label-preview.png"
++        menu.screenshot(image)
++        visible, _ = region_signature(image, pane, row, geometry["Width"] - pane, row * 4)
++        report("helper-argv-env-privacy", visible > 0,
++               f"argv is executable-only; exact label arrived on LF-terminated stdin then EOF; screenshot={image}")
++        actual = menu.finish("Return")[:2]
++        require(actual == ((private + "\n").encode(), 0),
++                f"literal selection stdout/status changed: {actual}; diagnostics: {menu.stderr_text()}")
++    finally:
++        menu.close()
++        os.close(inherited_fd)
++    long_label = "L" * 100000
++    log = output / "long-input.jsonl"
++    menu = invoke(str(binary), [*menu_options, "-P", str(helper), "-l", "5"],
++                  (long_label + "\n").encode(), helper_env(base_env, log, "empty"))
++    try:
++        time.sleep(.2)
++        records = read_log(log)
++        require(records and records[-1]["label"] == long_label and records[-1]["stdin_eof"],
++                "partial writes lost bytes from a label larger than pipe capacity")
++        report("helper-large-stdin-delivery", True, "100000 original label bytes plus LF and EOF received")
++    finally:
++        menu.close()
++    for mode in ("delay-output", "delay-exit"):
++        log = output / f"{mode}.jsonl"
++        menu = invoke(str(binary), [*menu_options, "-P", str(helper), "-l", "5"], b"target\n",
++                      helper_env(base_env, log, mode))
++        try:
++            if mode == "delay-output":
++                loading_image = output / "status-loading.png"
++                time.sleep(.12)
++                menu.screenshot(loading_image)
++                loading = region_signature(loading_image, pane, row * 5,
++                                           geometry["Width"] - pane, row)[1]
++                require(loading == word_signatures["Loading"],
++                        f"pending helper did not render Loading footer: {loading}")
++                report("helper-status-loading", True,
++                       f"footer matches rendered Loading; screenshot={loading_image}")
++                time.sleep(.5)
++            else:
++                loading_image = output / "delay-exit-before-completion.png"
++                time.sleep(.08)
++                menu.screenshot(loading_image)
++                pending, _ = region_signature(loading_image, pane, row, geometry["Width"] - pane, row * 4)
++                require(pending == 0, "stdout was published before delayed process exit")
++                time.sleep(.3)
++            image = output / f"success-{mode}.png"
++            menu.screenshot(image)
++            nonblank, _ = region_signature(image, pane, row, geometry["Width"] - pane, row * 4)
++            require(nonblank > 0, f"{mode} did not publish successful helper output")
++            report(f"helper-{mode}", True, f"successful completion rendered; screenshot={image}")
++        finally:
++            menu.close()
++
++    rapid_log = output / "rapid-selection.jsonl"
++    menu = invoke(str(binary), [*menu_options, "-P", str(helper), "-l", "5"], b"red\ngreen\nblue\n",
++                  helper_env(base_env, rapid_log))
++    try:
++        run([tool("xdotool"), "key", "--delay", "1", "Down", "Down"])
++        time.sleep(.25)
++        records = read_log(rapid_log)
++        require(records and records[-1]["label"] == "blue",
++                f"rapid selection left stale helper result: {records}")
++        require(len(records) <= 2, f"40ms debounce started too many rapid helper requests: {len(records)}")
++        report("helper-rapid-selection-debounce", True,
++               f"{len(records)} request(s); latest label={records[-1]['label']!r}")
++    finally:
++        menu.close()
++    blue = invoke(str(binary), [*menu_options, "-P", str(helper), "-l", "5"], b"blue\n",
++                  helper_env(base_env, output / "blue-reference.jsonl"))
++    try:
++        time.sleep(.15)
++        blue_image = output / "blue-reference.png"
++        blue.screenshot(blue_image)
++    finally:
++        blue.close()
++    stale_log = output / "stale-selection.jsonl"
++    menu = invoke(str(binary), [*menu_options, "-P", str(helper), "-l", "5"], b"red\ngreen\nblue\n",
++                  helper_env(base_env, stale_log, "stale"))
++    try:
++        time.sleep(.1)
++        run([tool("xdotool"), "key", "--delay", "1", "Down", "Down"])
++        time.sleep(.45)
++        records = read_log(stale_log)
++        image = output / "stale-selection.png"
++        menu.screenshot(image)
++        area = (pane, row, geometry["Width"] - pane, row * 4)
++        current = region_signature(image, *area)[1]
++        expected = region_signature(blue_image, *area)[1]
++        require(records and records[-1]["label"] == "blue" and current == expected,
++                f"stale helper output was published after selection changed: records={records}")
++        report("helper-stale-selection-discard", True,
++               f"latest selection blue rendered; screenshot={image}")
++    finally:
++        menu.close()
++
++    log = output / "zero-matches-running.jsonl"
++    menu = invoke(str(binary), [*menu_options, "-P", str(helper), "-l", "5"],
++                  b"q" * 100000 + b"\n", helper_env(base_env, log, "no-read"))
++    try:
++        time.sleep(.15)
++        records = read_log(log)
++        require(records, "blocked-stdin helper never started")
++        start = time.monotonic()
++        menu.key("z")
++        image = output / "zero-matches-running.png"
++        menu.screenshot(image)
++        elapsed = time.monotonic() - start
++        blank, _ = region_signature(image, pane, row, geometry["Width"] - pane, row * 5)
++        require(blank == 0 and elapsed < .25, f"blocked-stdin filtering failed: {blank}, {elapsed}")
++        for record in records:
++            live, zombies = observe_group(record["pgid"])
++            require(not live, f"zero matches left helper group alive: {live}")
++        require(menu.finish("Return")[:2] == (b"z\n", 0),
++                "zero matches changed typed-input stdout")
++        report("helper-blocked-stdin-zero-matches", True,
++               f"100000-byte blocked input cancelled, pane cleared, latency={elapsed:.3f}s")
++    finally:
++        menu.close()
++
++
++    for key, expected, status in (("Return", b"red\n", 0),
++                                  ("shift+Return", b"r\n", 0),
++                                  ("ctrl+Return", b"red\ngreen\n", 0),
++                                  ("Escape", b"", 1)):
++        log = output / f"running-key-{key}.jsonl"
++        menu = invoke(str(binary), [*menu_options, "-P", str(helper), "-l", "5"],
++                      b"red\ngreen\nblue\n", helper_env(base_env, log, "no-read"))
++        try:
++            time.sleep(.15)
++            require(read_log(log), "running-helper output-key test never launched a helper")
++            if key == "shift+Return":
++                menu.key("r")
++            start = time.monotonic()
++            if key == "ctrl+Return":
++                menu.key(key)
++                require(menu.process.poll() is None, "Ctrl-Return unexpectedly exited")
++                menu.key("Down")
++                time.sleep(.12)
++                final = "Return"
++            else:
++                final = key
++            actual = menu.finish(final)[:2]
++            elapsed = time.monotonic() - start
++            require(actual == (expected, status) and elapsed < (.6 if key == "ctrl+Return" else .25),
++                    f"{key} blocked or changed output: {actual}, elapsed={elapsed}")
++            require(not menu.stderr_text(), "helper stderr leaked on output/cancel")
++            for record in read_log(log):
++                live, zombies = observe_group(record["pgid"])
++                require(not live, f"{key} left a live helper group: {live}")
++            report(f"helper-running-key-{key}", True,
++                   f"stdout/status preserved; elapsed={elapsed:.3f}s; groups terminated")
++        finally:
++            menu.close()
++    released = invoke(str(binary), [], b"keyboard-released\n", base_env)
++    try:
++        actual = released.finish("Return")[:2]
++        require(actual == (b"keyboard-released\n", 0),
++                f"keyboard grab was not released after output-key completion: {actual}")
++        report("helper-keyboard-grab-release", True, "a new menu accepted input after output-key completion")
++    finally:
++        released.close()
++
++    repeated = invoke(str(binary), [*menu_options, "-P", str(helper), "-l", "5"], b"red\ngreen\n",
++                       helper_env(base_env, output / "repeated.jsonl"))
++    try:
++        rss, fds, children = [], [], []
++        proc = Path("/proc") / str(repeated.process.pid)
++        time.sleep(.2)
++        settled_fds = len(list((proc / "fd").iterdir()))
++        for _ in range(100):
++            repeated.key("Down")
++            repeated.key("Up")
++            rss.append(int((proc / "statm").read_text().split()[1]))
++            fds.append(len(list((proc / "fd").iterdir())))
++            children.append(len((proc / "task" / str(repeated.process.pid) / "children").read_text().split()))
++        require(max(rss) - min(rss) <= 64 and max(fds) <= settled_fds + 2 and max(children) <= 1,
++                f"repeated helper requests grew menu resources: rss={rss}, fds={fds}, children={children}")
++        report("helper-repeated-request-resources", True,
++               f"samples=100 rss_pages={min(rss)}..{max(rss)} fd_count={min(fds)}..{max(fds)} direct_children<=1")
++        actual = repeated.finish("Escape")[:2]
++        require(actual == (b"", 1), f"repeated cancellation changed Escape contract: {actual}")
++        records = read_log(output / "repeated.jsonl")
++        for pgid in {record["pgid"] for record in records}:
++            live, zombies = observe_group(pgid)
++            require(not live, f"repeated requests left helper group {pgid}: {live}")
++        report("helper-repeated-group-cleanup", True,
++               f"{len(records)} recorded requests, no live recorded groups after exit")
++    finally:
++        repeated.close()
++    # Repeated no-preview sampling reports observable process state without claiming an absence proof.
++    no_preview = invoke(str(binary), [], b"steady\n", base_env)
++    try:
++        rss, fd_counts, child_samples, cpu_ticks = [], [], [], []
++        for _ in range(12):
++            proc = Path("/proc") / str(no_preview.process.pid)
++            rss.append(int((proc / "statm").read_text().split()[1]))
++            fd_counts.append(len(list((proc / "fd").iterdir())))
++            child_samples.append((proc / "task" / str(no_preview.process.pid) / "children").read_text().strip())
++            stat = (proc / "stat").read_text().rsplit(")", 1)[1].split()
++            cpu_ticks.append(int(stat[11]) + int(stat[12]))
++            time.sleep(.05)
++        require(not any(child_samples), f"no-preview process had child processes: {child_samples}")
++        require(max(rss) - min(rss) <= 64 and max(fd_counts) - min(fd_counts) <= 1 and
++                max(cpu_ticks) - min(cpu_ticks) <= 2,
++                f"no-preview process grew or used excess idle CPU: rss={rss}, fds={fd_counts}, cpu_ticks={cpu_ticks}")
++        report("no-preview-process-sampling", True,
++               f"samples=12 rss_pages={min(rss)}..{max(rss)} fd_count={min(fd_counts)}..{max(fd_counts)} cpu_ticks={cpu_ticks[0]}..{cpu_ticks[-1]} children=none observed")
++    finally:
++        no_preview.close()
++
++    # Destroying an embedding parent while a helper is blocked must not strand the menu.
++    xlib, display, parent = parent_window(520, 150)
++    destroyed = Menu(str(binary), [*menu_options, "-P", str(helper), "-l", "5", "-w", hex(parent)],
++                     b"target\n", helper_env(base_env, output / "destroy-window.jsonl", "no-read"))
++    try:
++        time.sleep(.12)
++        xlib.XDestroyWindow(display, parent)
++        xlib.XSync(display, 0)
++        try:
++            code = destroyed.process.wait(timeout=2)
++        except subprocess.TimeoutExpired as exc:
++            raise CheckFailure("destroyed parent left menu alive during a hanging helper") from exc
++        report("helper-window-destruction", True,
++               f"menu exited with status {code} after parent destruction")
++        records = read_log(output / "destroy-window.jsonl")
++        require(records, "destroyed-window helper never started")
++        pgid = records[0]["pgid"]
++        live, zombies = observe_group(pgid)
++        require(not live, f"window destruction left helper group {pgid} alive: {live}")
++        report("helper-window-destruction-group", True, f"no live group members; zombies={zombies}")
++    finally:
++        destroyed.close()
++        xlib.XCloseDisplay(display)
++
++
++
+ def main():
+     parser = argparse.ArgumentParser(description=__doc__)
+-    parser.add_argument("--baseline", required=True, type=Path)
++    parser.add_argument("--helpers-only", "--helper-only", dest="helper_only", action="store_true",
++                        help="run async-helper cases without the unrelated no-preview comparison suite")
++    parser.add_argument("--baseline", type=Path)
++    parser.add_argument("--token-mode", action="store_true",
++                        help="add -F to helper cases, avoiding fuzzy-match sanitizer regressions")
+     parser.add_argument("--binary", required=True, type=Path)
+-    parser.add_argument("--fixture", required=True, type=Path)
+     parser.add_argument("--output", required=True, type=Path)
+     parser.add_argument("--isolated-display", action="store_true",
+                         help="confirm DISPLAY is a disposable isolated X server, never a user's display")
+     args = parser.parse_args()
+     require(args.isolated_display, "refusing X11 interaction without --isolated-display confirmation")
+     require(os.environ.get("DISPLAY"), "DISPLAY is unset; start an isolated X server")
+-    for label, path in (("baseline", args.baseline), ("binary", args.binary), ("fixture", args.fixture)):
++    paths = [("binary", args.binary)] + ([] if args.baseline is None else [("baseline", args.baseline)])
++    require(args.helper_only or args.baseline is not None,
++            "--baseline is required unless --helper-only is selected")
++    require(not args.token_mode or args.helper_only,
++            "--token-mode is only valid with --helper-only")
++    for label, path in paths:
+         require(path.is_absolute() and path.is_file() and os.access(path, os.X_OK),
+                 f"{label} must be an executable absolute path: {path}")
+     args.output.mkdir(parents=True, exist_ok=True)
++    args.output = args.output.resolve()
+     for name in ("xdotool", "xwininfo", "import", "convert"):
+         tool(name)
+     env = os.environ.copy()
+     env["LC_ALL"] = "C.UTF-8"
++    helper = args.output / "preview-helper.py"
++    helper_log = args.output / "helper.jsonl"
++    make_helper(helper)
++    preview_env = helper_env(env, helper_log)
+ 
+     # Invalid preview CLI must fail before display access or a keyboard grab.
+     invalid = [
+@@ -201,6 +773,11 @@
+         require(result.returncode == 1 and not result.stdout and result.stderr.startswith("usage:"),
+                 f"invalid preview CLI did not fail before opening display: {options}")
+     report("preview-cli-validation", True, f"{len(invalid)} invalid invocations rejected before display access")
++    if args.helper_only:
++        protocol_cases(args.binary, helper, args.output, env, args.token_mode)
++        (args.output / "report.txt").write_text("\n".join(RESULTS) + "\n", encoding="utf-8")
++        (args.output / "results.json").write_text(json.dumps(RESULTS, indent=2) + "\n", encoding="utf-8")
++        return 0
+ 
+     ordinary = b"alpha\nAlpine\nbeta\ngamma\ndelta\nepsilon\n" + b"long-label-" + b"x" * 160 + b"\n"
+     comparisons = [
+@@ -261,7 +838,7 @@
+         ("preview-long-label", [], ["End"], "Return", b"x" * 200 + b"\n", 0),
+     ]:
+         data = fixture_data if name != "preview-long-label" else fixture_data + b"x" * 200 + b"\n"
+-        menu = invoke(str(args.fixture), ["-P", "/synthetic", "-l", "5", *options], data, env)
++        menu = invoke(str(args.binary), ["-P", str(helper), "-l", "5", *options], data, preview_env)
+         try:
+             menu.key(*keys)
+             actual = menu.finish(final)[:2]
+@@ -278,13 +855,15 @@
+                      ("preview-long-prompt", ["-l", "5", "-p", "P" * 300], fixture_data)]
+     screenshot_paths = []
+     for name, options, data in preview_cases:
+-        menu = invoke(str(args.fixture), ["-P", "/synthetic", *options], data, env)
++        menu = invoke(str(args.binary), ["-P", str(helper), *options], data, preview_env)
+         try:
+             before = args.output / f"{name}-before.png"
++            time.sleep(.15)
+             menu.screenshot(before)
+             geometry = menu.info()
+             if name == "preview-empty-matches":
+                 menu.key("z")
++                time.sleep(.1)
+             elif name == "preview-bottom":
+                 root = run([tool("xwininfo"), "-root"])
+                 match = re.search(r"Height:\s+(\d+)", root.stdout)
+@@ -309,9 +888,9 @@
+                 row_height = height // 6
+                 pane_x = (width - 1) * 2 // 5 + 1
+                 visible, _ = region_signature(before, pane_x, row_height,
+-                                              width - pane_x, height - row_height)
++                                              width - pane_x, height - 2 * row_height)
+                 cleared, _ = region_signature(after, pane_x, row_height,
+-                                              width - pane_x, height - row_height)
++                                              width - pane_x, height - 2 * row_height)
+                 report("preview-zero-matches-clear", visible > 0 and cleared == 0,
+                        f"right-pane pixel deviation {visible} -> {cleared}")
+             if name == "preview-geometry":
+@@ -320,6 +899,7 @@
+                 width = geometry["Width"]
+                 require(width >= 300, f"display too narrow for pane geometry assertion: {width}")
+                 menu.key("Down")
++                time.sleep(.15)
+                 menu.screenshot(after)
+                 y = height // 6 + (height // 6) // 2
+                 first = pixel(before, 1, y)
+@@ -353,6 +933,7 @@
+                 report("preview-multiline-blank-line", blank == 0 and paragraph > 0,
+                        f"blank row deviation={blank}, following paragraph={paragraph}")
+                 menu.key("Down")
++                time.sleep(.15)
+                 unicode_image = args.output / "preview-unicode.png"
+                 menu.screenshot(unicode_image)
+                 screenshot_paths.append(unicode_image)
+@@ -361,6 +942,7 @@
+                        unicode > 0 and unicode_signature not in (short_signature, multiline_signature),
+                        f"third selection renders a distinct nonblank Unicode preview: {unicode_image}")
+                 menu.key("Up")
++                time.sleep(.15)
+                 menu.screenshot(after)
+                 _, restored_signature = region_signature(after, *region)
+                 report("preview-return-content", restored_signature == multiline_signature,
+@@ -369,7 +951,7 @@
+         finally:
+             menu.close()
+ 
+-    menu = invoke(str(args.fixture), ["-l", "5"], fixture_data, env)
++    menu = invoke(str(args.binary), ["-l", "5"], fixture_data, env)
+     try:
+         clamped_height = menu.info()["Height"]
+         report("preview-requested-rows", preview_height > clamped_height,
+@@ -380,7 +962,7 @@
+     # Use a real X11 parent to ensure requested rows clamp to its available height.
+     xlib, display, parent = parent_window(520, 150)
+     try:
+-        menu = invoke(str(args.fixture), ["-P", "/synthetic", "-l", "100", "-w", hex(parent)], fixture_data, env)
++        menu = invoke(str(args.binary), ["-P", str(helper), "-l", "100", "-w", hex(parent)], fixture_data, preview_env)
+         try:
+             geometry = menu.info()
+             require(geometry["Width"] == 520 and geometry["Height"] <= 150,
+@@ -390,9 +972,9 @@
+             screenshot_paths.append(screenshot)
+             report("embedded-parent-clamp", True, f"geometry={geometry}; screenshot: {screenshot}")
+             menu.close()
+-            menu = invoke(str(args.fixture),
+-                          ["-P", "/synthetic", "-b", "-l", "100", "-w", hex(parent)],
+-                          fixture_data, env)
++            menu = invoke(str(args.binary),
++                          ["-P", str(helper), "-b", "-l", "100", "-w", hex(parent)],
++                          fixture_data, preview_env)
+             bottom = menu.info()
+             require(bottom["Absolute upper-left Y"] + bottom["Height"] == 155,
+                     f"embedded bottom placement ignored parent bounds: {bottom}")
+@@ -407,8 +989,8 @@
+     # An undersized parent must fail instead of producing unreadable panes.
+     xlib, display, parent = parent_window(20, 20)
+     try:
+-        menu = Menu(str(args.fixture), ["-P", "/synthetic", "-l", "3", "-w", hex(parent)],
+-                    fixture_data, env)
++        menu = Menu(str(args.binary), ["-P", str(helper), "-l", "3", "-w", hex(parent)],
++                    fixture_data, preview_env)
+         try:
+             try:
+                 status = menu.process.wait(timeout=TIMEOUT)
+@@ -423,8 +1005,11 @@
+         xlib.XDestroyWindow(display, parent)
+         xlib.XCloseDisplay(display)
+ 
++    protocol_cases(args.binary, helper, args.output, env)
++    screenshot_paths.extend(str(path) for path in sorted(args.output.glob("status-*.png")))
+     report("screenshots", True, ", ".join(map(str, screenshot_paths)))
+     (args.output / "report.txt").write_text("\n".join(RESULTS) + "\n", encoding="utf-8")
++    (args.output / "results.json").write_text(json.dumps(RESULTS, indent=2) + "\n", encoding="utf-8")
+     return 0
+ 
+ 
+--- a/openspec/changes/add-text-preview/tasks.md
++++ b/openspec/changes/add-text-preview/tasks.md
+@@ -1,13 +1,13 @@
+ # Tasks
+ 
+-Apply is authorized only through the first GUI checkpoint (groups 1–2); later implementation requires a separate review and authorization. The decisions and complete scenario inventory are in `design.md` and `specs/`; no generic discovery phase is deferred to implementation. Tests use synthetic data only and must not touch the existing daemon/history or real clipboard.
++Apply is authorized through the asynchronous preview-helper checkpoint (groups 1–3); final text preparation, scrolling, clipmenu integration and installation require separate review and authorization. The decisions and scenario inventory are in `design.md` and `specs/`. Tests use synthetic data only and must not touch the existing daemon/history or real clipboard.
+ 
+ Land and verify each increment before the next. If event-loop/process-management state or machinery becomes substantially more complex than the file-local single-request design, stop and flag the concrete expansion for review before implementing it. Do not add dependencies, fzy/fzf integration, a generic job framework or a permanent worker; preserve no-preview behavior.
+ 
+ ## 1. Baseline and opt-in CLI
+ 
+ - [x] 1.1 Preserve the user's working-tree configuration and outputs; build a pre-change baseline in a disposable workspace and record HEAD, header and compiler flags. Verify the baseline runs `-v`, `stest -f dmenu.c`, and a finite real X11 menu on an isolated display; record any pre-existing warnings/errors separately.
+-- [ ] 1.2 Add `-P` parsing for an absolute executable path and require an effective positive `-l`, validating before keyboard grab. Document the option/requirements in usage and `dmenu.1`. Verify missing/relative paths and absent/zero rows exit 1 without a grab, while missing executable files become recoverable preview errors at runtime.
++- [x] 1.2 Add `-P` parsing for an absolute executable path and require an effective positive `-l`, validating before keyboard grab. Document the option/requirements in usage and `dmenu.1`. Verify missing/relative paths and absent/zero rows exit 1 without a grab, while missing executable files become recoverable preview errors at runtime.
+ - [x] 1.3 Preserve no-preview control flow and local header customizations, avoiding new config fields. Verify clean warning-enabled C99 builds with distributed defaults and a copied customized `config.h`, preserving `-lm`, fuzzy defaults, local prefix and existing CLI flags. If guarded OpenBSD code changes, account for preview proc/exec pledge promises without weakening default promises; record platform verification limits.
+ 
+ ## 2. Early split-pane UI checkpoint
+@@ -17,11 +17,11 @@
+ 
+ ## 3. Nonblocking helper lifecycle
+ 
+-- [ ] 3.1 Implement direct `execv` and the single active child-group request slot with nonblocking stdin/stdout pipes, close-on-exec/unused-fd cleanup, content-free stderr handling, SIGPIPE/EINTR/EAGAIN handling, generation ownership and central selected-item reconciliation. Verify literal labels (including whitespace/metacharacters/UTF-8 and very long stdin labels) reach a synthetic helper byte-for-byte with no content argv, shell evaluation, inherited X fd or log output.
+-- [ ] 3.2 Integrate XPending-aware bounded event batches and poll with 40 ms debounce and a 1000 ms monotonic deadline from launch covering execution, stdin delivery, stdout collection and process completion, excluding text preparation. Verify nonreading/delayed helpers, stdout-close-then-hang and rapid selection churn leave input/cancel responsive and never publish stale results; EOF without process completion must still time out.
+-- [ ] 3.3 Bound reads to 4 KiB per turn, retain at most 65536 bytes and use a one-byte overflow probe. Verify 65535/65536/65537-byte cases: exact-limit EOF/exit-0 before deadline succeeds without truncation; observed overflow followed by menu SIGKILL/signalled or nonzero exit stays Truncated rather than Unavailable/Timed out; ordinary below-cap nonzero exit discards partial text as Unavailable. Record terminal cause independently of the later wait status.
+-- [ ] 3.4 Finish teardown for result/error/cancel/destruction/exit, including remaining cooperative descendants on successful completion. Ungrab/flush the keyboard promptly, never wait for helper termination on exit, and reap direct children nonblocking while running before reusing their slot. Verify early stdin close, failed exec, Ctrl-Return and inherited stdout through repeated changes; separately observe eventual cooperative-group termination within 2000 ms from SIGKILL dispatch, not disappearance when the handler/menu returns. Do not claim containment of intentional group escapees; an external fixture must clean up its own escapees. Keep one compact isolated-X11 regression check covering stale results, timeout/overflow precedence and eventual teardown.
+-- [ ] 3.5 Connect real helper results to the validated panes and remove development-only synthetic content injection without leaving a fake fallback or fixture CLI. Document protocol, terminal-state precedence, deadline scope, cap and trusted-group limits. Verify each documented state with synthetic executable helpers and rerun the early screenshot/navigation checks using their real stdin/stdout protocol.
++- [x] 3.1 Implement direct `execv` and the single active child-group request slot with nonblocking stdin/stdout pipes, close-on-exec/unused-fd cleanup, content-free stderr handling, SIGPIPE/EINTR/EAGAIN handling, generation ownership and central selected-item reconciliation. Verify literal labels (including whitespace/metacharacters/UTF-8 and very long stdin labels) reach a synthetic helper byte-for-byte with no content argv, shell evaluation, inherited X fd or log output.
++- [x] 3.2 Integrate XPending-aware bounded event batches and poll with 40 ms debounce and a 1000 ms monotonic deadline from launch covering execution, stdin delivery, stdout collection and process completion, excluding text preparation. Verify nonreading/delayed helpers, stdout-close-then-hang and rapid selection churn leave input/cancel responsive and never publish stale results; EOF without process completion must still time out.
++- [x] 3.3 Bound reads to 4 KiB per turn, retain at most 65536 bytes and use a one-byte overflow probe. Verify 65535/65536/65537-byte cases: exact-limit EOF/exit-0 before deadline succeeds without truncation; observed overflow followed by menu SIGKILL/signalled or nonzero exit stays Truncated rather than Unavailable/Timed out; ordinary below-cap nonzero exit discards partial text as Unavailable. Record terminal cause independently of the later wait status.
++- [x] 3.4 Finish teardown for result/error/cancel/destruction/exit, including remaining cooperative descendants on successful completion. Ungrab/flush the keyboard promptly, never wait for helper termination on exit, and reap direct children nonblocking while running before reusing their slot. Verify early stdin close, failed exec, Ctrl-Return and inherited stdout through repeated changes; separately observe eventual cooperative-group termination within 2000 ms from SIGKILL dispatch, not disappearance when the handler/menu returns. Do not claim containment of intentional group escapees; an external fixture must clean up its own escapees. Keep one compact isolated-X11 regression check covering stale results, timeout/overflow precedence and eventual teardown.
++- [x] 3.5 Connect real helper results to the validated panes and remove development-only synthetic content injection without leaving a fake fallback or fixture CLI. Document protocol, terminal-state precedence, deadline scope, cap and trusted-group limits. Verify each documented state with synthetic executable helpers and rerun the early screenshot/navigation checks using their real stdin/stdout protocol.
+ 
+ ## 4. Text preparation and scrolling
+ 
+@@ -61,3 +61,20 @@
+ - Persistent review artifacts are `evidence/gui-checkpoint.png` (the full 1920x1080 isolated display, three visible labels, selected multiline preview, `-l 12 -p 'Synthetic Clipboard' -fn 'monospace:size=18'`), `evidence/gui-checkpoint-unicode.png` (the Unicode selection), and `evidence/gui-checkpoint.log` (the executed 50-PASS regression output). Both screenshots were visually inspected. A separate capture check measured nonblank Unicode text rows and confirmed Return still emitted the original `Unicode synthetic sample` label with exit 0.
+ - The older selection-highlight check is intentionally tied to default `#005577` selected and `#222222` normal backgrounds. Row height is measured from the menu's actual height and requested five body rows, not pinned to a font pixel size; no-preview pixel equality assumes the same fonts/display for both binaries. This is a default-configuration regression harness, not a custom-theme/all-fonts test. The new preview-content checks use pixel variation and same-run signatures, not fixed colors, glyph hashes or OCR. These explicit constraints do not currently justify a harness refactor.
+ - Existing task completion remains 4/21 (1.1, 1.3, 2.1, 2.2); no later task is claimed complete. Only checkpoint evidence was extended. Xmonad and multiple physical monitors were not exercised in this refinement.
++
++## Asynchronous helper checkpoint evidence
++
++- Authorized implementation stops after group 3. Tasks 1.2 and 3.1–3.5 are now complete, for 10/21 overall; groups 4–6 remain unchecked. No final sanitization/wrapping, scrolling, clipmenu helper, deployment or Xmonad work was performed. Earlier GUI evidence files are preserved unchanged.
++- The subprocess lifecycle remains file-local in `dmenu.c`: direct absolute `execv`, label plus LF/EOF on stdin, nonblocking parent pipe endpoints, close-on-exec descriptors, child `closefrom(3)`, stderr redirected to `/dev/null`, one active request slot, and central selected-item/generation reconciliation. The compile-time fixture and checkpoint notice were removed; synthetic content is supplied only by executable test helpers.
++- A 40 ms debounce precedes launch. The 1000 ms monotonic deadline includes input delivery, output collection and process completion. X events are serviced in bounded batches; pipe reads are at most 4096 bytes per turn. A one-byte probe distinguishes exact 65536-byte completion from overflow. Truncated is latched before cancellation and is not overwritten by forced/nonzero producer exit; ordinary nonzero exits discard partial output.
++- To avoid PID/PGID reuse races, `waitid(WNOWAIT | WNOHANG)` observes completion without releasing the leader PID. Group SIGKILL is dispatched before `waitpid(WNOHANG)` reaping; the request slot cannot be reused while its direct child remains unreaped. Exit ungrabs and flushes X first and never waits for helper termination. Cooperative descendants are covered; intentional process-group escape and uninterruptible kernel I/O are not sandbox guarantees.
++- Final full regression command: `DISPLAY=<owned-Xvfb> python3 tests/preview-checkpoint.py --baseline /tmp/dmenu-preview-checkpoint-RBbWFs/baseline/dmenu --binary /tmp/dmenu-preview-async-4NWeMr/normal/dmenu --output /tmp/dmenu-preview-async-4NWeMr/final-results --isolated-display`. It completed with exit 0 and 89 PASS reports on an owned 1920x1080 display. `evidence/async/normal.log` and `normal-result.json` retain the actual results.
++- Coverage includes successful multiline/Unicode output; empty success; ordinary nonzero output; missing, nonexecutable and no-shebang helpers; delayed stdout and delayed exit; blocked 100000-byte stdin; early stdin close/EPIPE; stdout closed while the child stays alive; unlimited output; 65535/65536/65537 bytes; overflow followed by exit 7; exact-limit exit 7; rapid/stale selections; active-request zero matches; output/cancel keys during hangs; inherited stdout descendants and descendants surviving a successful leader; window destruction; inherited descriptor closure and unchanged environment/argv privacy. A shell-positive no-shebang control separately confirmed that `execv` does not invoke shell fallback.
++- Actual normal-build measurements: 200 selection changes, 100 resource samples, 198 recorded helper requests, RSS 2428–2428 pages, FD count 4–5, at most one direct child, and no live recorded helper groups after exit. Descendant and window-destruction observations reported no live members and no zombies. The observer allows a two-second cooperative-termination window instead of requiring instantaneous disappearance.
++- Normal-build end-to-end timings include test-driver overhead: Return/Escape during hangs 0.066 s, Shift-Return 0.079 s, blocked-stdin filtering/clear 0.086 s. The Ctrl-Return/Down/Return sequence took 0.331 s including its deliberate 0.120 s pause and multiple key injections; it is not a single-key latency. A separate strace observed group SIGKILL 999.93 ms after fork when stdout had closed but the helper remained alive, and an initial 40 ms poll timeout. See `deadline.strace` and `focused-proof.txt`.
++- No-preview regression output and horizontal/vertical screenshots match the original baseline. A separate comparison against the approved GUI fixture binary found identical geometry (1920x247 with default font and 12 rows), pixel-identical left pane/highlight and full-width input. No-preview `/proc` sampling observed RSS 2354–2354 pages, four FDs, no children and unchanged idle CPU ticks; strace of both baseline/current observed no child-creation calls or finite-timeout polling. The no-preview path remains blocking `XNextEvent` without preview buffer allocation.
++- Warning-enabled normal, ASan/UBSan and UBSan-only builds succeeded with the same four pre-existing signedness warnings. UBSan-only helper tests with `--helpers-only --token-mode` completed with exit 0 and 40 PASS reports, no sanitizer diagnostics, RSS 2824–2824 pages and FD count 4–5 over 200 changes; 201 recorded groups had no live members after exit. `evidence/async/ubsan.log` and `ubsan-result.json` retain these results.
++- ASan-clean status is not claimed: typed fuzzy input reproduces the existing `fuzzymatch()` heap-buffer-overflow on both the preserved baseline and this checkpoint. Token-mode baseline/current exit checks also report identical existing Fontconfig leaks (8839 bytes in 128 allocations), affecting sanitizer-run exit/output. These findings were not suppressed or repaired outside scope; `evidence/async/sanitizers.log` retains the comparison. Valgrind was unavailable. OpenBSD runtime/pledge, multiple physical monitors and Xmonad were not exercised.
++- Persistent synthetic real-helper screenshots are `evidence/async/success.png` and `truncated.png`, captured on isolated Xvfb with 18-point text and visually inspected. Source delta against the approved GUI checkpoint is `evidence/async/source.diff`; safe disposable build/helper instructions are in README. The installed binary, local configuration, existing build outputs and earlier GUI evidence are protected by SHA256 checks. No installation or real clipboard interaction occurred.
++- A targeted independent static lifecycle review found no material defects, but was not substituted for executable checks. There is no architectural expansion beyond the approved single-group design. Temporary newline clipping and the fixed status footer are explicit checkpoint presentation limits; the next authorized action is independent review, not task 4.1.
++- An additional strict ASan helper-only/token-mode run reached 23 PASS reports, including empty/error/timeout, descriptor/privacy, descendant and all exact-limit/overflow cases, then stopped with exit 1 on the same 8839-byte/128-allocation Fontconfig leak at the first normal Return. It is a partial diagnostic run, not a passing suite; see `evidence/async/asan.log` and `asan-result.json`. No sanitizer finding was suppressed.

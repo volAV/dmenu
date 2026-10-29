@@ -1,0 +1,54 @@
+{
+  "attempts": [
+    {
+      "name": "normal-full",
+      "exit": 1,
+      "pass_reports_before_failure": 48,
+      "failure": "FAIL: libX11 could not open DISPLAY for embedded-parent case",
+      "accepted": false
+    },
+    {
+      "name": "normal-helpers-fuzzy",
+      "exit": 1,
+      "pass_reports_before_failure": 1,
+      "failure": "FAIL: timed out after 2s: /usr/bin/xdotool search --onlyvisible --class dmenu",
+      "accepted": false
+    },
+    {
+      "name": "normal-helpers-token",
+      "exit": 1,
+      "pass_reports_before_failure": 1,
+      "failure": "FAIL: timed out after 2s: /usr/bin/xdotool search --onlyvisible --class dmenu",
+      "accepted": false
+    },
+    {
+      "name": "asan-ubsan-full",
+      "exit": 1,
+      "pass_reports_before_failure": 1,
+      "failure": "FAIL: timed out after 2s: /usr/bin/xdotool search --onlyvisible --class dmenu",
+      "accepted": false
+    },
+    {
+      "name": "asan-ubsan-helpers-token",
+      "exit": 1,
+      "pass_reports_before_failure": 1,
+      "failure": "FAIL: timed out after 2s: /usr/bin/xdotool search --onlyvisible --class dmenu",
+      "accepted": false
+    },
+    {
+      "name": "ubsan-full",
+      "exit": 1,
+      "pass_reports_before_failure": 1,
+      "failure": "FAIL: timed out after 2s: /usr/bin/xdotool search --onlyvisible --class dmenu",
+      "accepted": false
+    },
+    {
+      "name": "ubsan-helpers-token",
+      "exit": 1,
+      "pass_reports_before_failure": 1,
+      "failure": "FAIL: timed out after 2s: /usr/bin/xdotool search --onlyvisible --class dmenu",
+      "accepted": false
+    }
+  ],
+  "infrastructure_diagnosis": "Xvfb resets repeatedly emitted keymap warnings to an undrained subprocess stderr pipe; subsequent XOpenDisplay/search operations stalled. Recovery uses -noreset and regular-file stderr. These are partial failed runs, not accepted coverage."
+}

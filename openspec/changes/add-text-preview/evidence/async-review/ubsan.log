@@ -1,0 +1,42 @@
+PASS preview-cli-validation: 8 invalid invocations rejected before display access
+PASS helper-status-empty: footer matches No preview; screenshot=/tmp/dmenu-review-corrections-fjivyc9f/ubsan-results-113919640945388/status-0-empty.png
+PASS helper-status-nonzero: footer matches Unavailable; screenshot=/tmp/dmenu-review-corrections-fjivyc9f/ubsan-results-113919640945388/status-1-nonzero.png
+PASS helper-status-no-read: footer matches Timed out; screenshot=/tmp/dmenu-review-corrections-fjivyc9f/ubsan-results-113919640945388/status-2-no-read.png
+PASS helper-status-partial-input: footer matches Unavailable; screenshot=/tmp/dmenu-review-corrections-fjivyc9f/ubsan-results-113919640945388/status-3-partial-input.png
+PASS helper-status-close-stdout: footer matches Timed out; screenshot=/tmp/dmenu-review-corrections-fjivyc9f/ubsan-results-113919640945388/status-4-close-stdout.png
+PASS helper-status-descendant-pipe: footer matches Timed out; screenshot=/tmp/dmenu-review-corrections-fjivyc9f/ubsan-results-113919640945388/status-5-descendant-pipe.png
+PASS helper-group-termination-descendant-pipe: no live group members after observation; zombies=[]
+PASS helper-status-descendant-exit: footer matches successful blank state; screenshot=/tmp/dmenu-review-corrections-fjivyc9f/ubsan-results-113919640945388/status-6-descendant-exit.png
+PASS helper-group-termination-descendant-exit: no live group members after observation; zombies=[]
+PASS helper-status-early-success: footer matches successful blank state; screenshot=/tmp/dmenu-review-corrections-fjivyc9f/ubsan-results-113919640945388/status-7-early-success.png
+PASS helper-status-unlimited: footer matches Truncated; screenshot=/tmp/dmenu-review-corrections-fjivyc9f/ubsan-results-113919640945388/status-8-unlimited.png
+PASS helper-output-65535-bytes-exit-0: terminal-state precedence verified; screenshot=/tmp/dmenu-review-corrections-fjivyc9f/ubsan-results-113919640945388/status-bytes-65535-exit-0.png
+PASS helper-output-65536-bytes-exit-0: terminal-state precedence verified; screenshot=/tmp/dmenu-review-corrections-fjivyc9f/ubsan-results-113919640945388/status-bytes-65536-exit-0.png
+PASS helper-output-65537-bytes-exit-0: terminal-state precedence verified; screenshot=/tmp/dmenu-review-corrections-fjivyc9f/ubsan-results-113919640945388/status-bytes-65537-exit-0.png
+PASS helper-output-65537-bytes-exit-7: terminal-state precedence verified; screenshot=/tmp/dmenu-review-corrections-fjivyc9f/ubsan-results-113919640945388/status-bytes-65537-exit-7.png
+PASS helper-output-65536-bytes-exit-7: terminal-state precedence verified; screenshot=/tmp/dmenu-review-corrections-fjivyc9f/ubsan-results-113919640945388/status-bytes-65536-exit-7.png
+PASS helper-single-row-ready: first line rendered; screenshot=/tmp/dmenu-review-corrections-fjivyc9f/ubsan-results-113919640945388/one-row-multiline.png
+PASS helper-single-row-status: No preview status rendered; screenshot=/tmp/dmenu-review-corrections-fjivyc9f/ubsan-results-113919640945388/one-row-empty.png
+PASS helper-missing-failure: footer=Unavailable; screenshot=/tmp/dmenu-review-corrections-fjivyc9f/ubsan-results-113919640945388/status-missing.png
+PASS helper-nonexec-failure: footer=Unavailable; screenshot=/tmp/dmenu-review-corrections-fjivyc9f/ubsan-results-113919640945388/status-nonexec.png
+PASS helper-no-shebang-failure: footer=Unavailable; screenshot=/tmp/dmenu-review-corrections-fjivyc9f/ubsan-results-113919640945388/status-no-shebang.png
+PASS helper-argv-env-privacy: argv is executable-only; exact label arrived on LF-terminated stdin then EOF; screenshot=/tmp/dmenu-review-corrections-fjivyc9f/ubsan-results-113919640945388/literal-label-preview.png
+PASS helper-large-stdin-delivery: 100000 original label bytes plus LF and EOF received
+PASS helper-status-loading: footer matches rendered Loading; screenshot=/tmp/dmenu-review-corrections-fjivyc9f/ubsan-results-113919640945388/status-loading.png
+PASS helper-delay-output: successful completion rendered; screenshot=/tmp/dmenu-review-corrections-fjivyc9f/ubsan-results-113919640945388/success-delay-output.png
+PASS helper-delay-exit: successful completion rendered; screenshot=/tmp/dmenu-review-corrections-fjivyc9f/ubsan-results-113919640945388/success-delay-exit.png
+PASS helper-rapid-selection-debounce: 1 request(s); latest label='blue'
+PASS helper-stale-selection-discard: old start observed; newest output rendered; navigation=0.025s; samples=41 max-gap=0.025s; transients shorter may be missed; evidence=/tmp/dmenu-review-corrections-fjivyc9f/ubsan-results-113919640945388/stale-intermediate-samples.json
+PASS helper-deadline-under-x11-traffic: Timed out at 0.976s with 97 bounded-rate Expose events; first/max XSync RTT=0.000150/0.000240s
+PASS helper-cancellation-under-x11-traffic: next label helper and Escape completed under 10 Expose events; navigation=0.066s next-start=0.077s cancellation=0.066s; expected BadWindow handled; first/max XSync RTT=0.000134/0.000172s
+PASS helper-blocked-stdin-zero-matches: 100000-byte blocked input cancelled, pane cleared, latency=0.098s
+PASS helper-running-key-Return: stdout/status preserved; elapsed=0.066s; groups terminated
+PASS helper-running-key-shift+Return: stdout/status preserved; elapsed=0.081s; groups terminated
+PASS helper-running-key-ctrl+Return: stdout/status preserved; elapsed=0.336s; groups terminated
+PASS helper-running-key-Escape: stdout/status preserved; elapsed=0.067s; groups terminated
+PASS helper-keyboard-grab-release: a new menu accepted input after output-key completion
+PASS helper-repeated-request-resources: unique_starts=201 active_samples=200 warmup=10 asan=False RSS_budget=64pages post-warmup=2860..2877 fd_count=4..5; raw samples=repeated-resource-samples.json
+PASS helper-repeated-group-cleanup: 201 recorded starts; every group observed within its cancellation bound
+PASS no-preview-process-sampling: samples=12 rss_pages=2813..2813 fd_count=4..4 cpu_ticks=2..2 children=none observed
+PASS helper-window-destruction: menu exited with status 1 after parent destruction
+PASS helper-window-destruction-group: no live group members; zombies=[]

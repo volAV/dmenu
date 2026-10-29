@@ -1,0 +1,71 @@
+{
+  "modified_text_files": [
+    {
+      "path": "tests/preview-checkpoint.py",
+      "added": 612,
+      "removed": 58
+    },
+    {
+      "path": "tests/preview-boundary.c",
+      "added": 355,
+      "removed": 0
+    },
+    {
+      "path": "README",
+      "added": 50,
+      "removed": 8
+    },
+    {
+      "path": "AGENTS.md",
+      "added": 6,
+      "removed": 0
+    },
+    {
+      "path": "openspec/changes/add-text-preview/tasks.md",
+      "added": 22,
+      "removed": 0
+    }
+  ],
+  "new_evidence_files": [
+    "openspec/changes/add-text-preview/evidence/async-review/asan-artifacts.tar.gz",
+    "openspec/changes/add-text-preview/evidence/async-review/asan-leaks.stderr",
+    "openspec/changes/add-text-preview/evidence/async-review/asan-result.json",
+    "openspec/changes/add-text-preview/evidence/async-review/asan.log",
+    "openspec/changes/add-text-preview/evidence/async-review/baseline-asan-leaks.stderr",
+    "openspec/changes/add-text-preview/evidence/async-review/build-asan.log",
+    "openspec/changes/add-text-preview/evidence/async-review/build-baseline-asan.log",
+    "openspec/changes/add-text-preview/evidence/async-review/build-baseline.log",
+    "openspec/changes/add-text-preview/evidence/async-review/build-normal.log",
+    "openspec/changes/add-text-preview/evidence/async-review/build-probe-final-asan.log",
+    "openspec/changes/add-text-preview/evidence/async-review/build-probe-final-normal.log",
+    "openspec/changes/add-text-preview/evidence/async-review/build-probe-final-ubsan.log",
+    "openspec/changes/add-text-preview/evidence/async-review/build-ubsan.log",
+    "openspec/changes/add-text-preview/evidence/async-review/capture-controls.tar.gz",
+    "openspec/changes/add-text-preview/evidence/async-review/changed-files.json",
+    "openspec/changes/add-text-preview/evidence/async-review/documentation-command.json",
+    "openspec/changes/add-text-preview/evidence/async-review/documentation-smoke.log",
+    "openspec/changes/add-text-preview/evidence/async-review/fixture-cleanup.json",
+    "openspec/changes/add-text-preview/evidence/async-review/leaks-result.json",
+    "openspec/changes/add-text-preview/evidence/async-review/normal-artifacts.tar.gz",
+    "openspec/changes/add-text-preview/evidence/async-review/normal-result.json",
+    "openspec/changes/add-text-preview/evidence/async-review/normal.log",
+    "openspec/changes/add-text-preview/evidence/async-review/preservation.json",
+    "openspec/changes/add-text-preview/evidence/async-review/probe-asan-result.json",
+    "openspec/changes/add-text-preview/evidence/async-review/probe-asan.log",
+    "openspec/changes/add-text-preview/evidence/async-review/probe-normal-result.json",
+    "openspec/changes/add-text-preview/evidence/async-review/probe-normal.log",
+    "openspec/changes/add-text-preview/evidence/async-review/probe-ubsan-result.json",
+    "openspec/changes/add-text-preview/evidence/async-review/probe-ubsan.log",
+    "openspec/changes/add-text-preview/evidence/async-review/source.diff",
+    "openspec/changes/add-text-preview/evidence/async-review/summary.json",
+    "openspec/changes/add-text-preview/evidence/async-review/superseded-attempts.json",
+    "openspec/changes/add-text-preview/evidence/async-review/superseded-harness-failures.tar.gz",
+    "openspec/changes/add-text-preview/evidence/async-review/ubsan-artifacts.tar.gz",
+    "openspec/changes/add-text-preview/evidence/async-review/ubsan-full-known-fuzzy-artifacts.tar.gz",
+    "openspec/changes/add-text-preview/evidence/async-review/ubsan-full-known-fuzzy-result.json",
+    "openspec/changes/add-text-preview/evidence/async-review/ubsan-full-known-fuzzy.log",
+    "openspec/changes/add-text-preview/evidence/async-review/ubsan-result.json",
+    "openspec/changes/add-text-preview/evidence/async-review/ubsan.log",
+    "openspec/changes/add-text-preview/evidence/async-review/validation.log"
+  ]
+}

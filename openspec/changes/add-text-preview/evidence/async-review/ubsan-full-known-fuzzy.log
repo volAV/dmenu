@@ -1,0 +1,18 @@
+PASS preview-cli-validation: 8 invalid invocations rejected before display access
+PASS horizontal-empty-enter: baseline=(b'alpha\n', 0), binary=(b'alpha\n', 0), expected=(b'alpha\n', 0)
+PASS horizontal-empty-enter-appearance: baseline/new screenshots are pixel-identical
+PASS horizontal-down-enter: baseline=(b'beta\n', 0), binary=(b'beta\n', 0), expected=(b'beta\n', 0)
+PASS horizontal-escape: baseline=(b'', 1), binary=(b'', 1), expected=(b'', 1)
+FAIL horizontal-fuzzy-filter: baseline=(b'alpha\n', 0), binary=(b'', 1), expected=(b'alpha\n', 0)
+FAIL: FAIL horizontal-fuzzy-filter: baseline=(b'alpha\n', 0), binary=(b'', 1), expected=(b'alpha\n', 0)
+SANITIZER DIAGNOSTICS: pid 1454434: dmenu.c:643:29: runtime error: load of address 0x62d21f206ec8 with insufficient space for an object of type 'struct item *'
+0x62d21f206ec8: note: pointer points here
+ d2 62 00 00  31 00 00 00 00 00 00 00  76 9c 01 32 d4 62 00 00  fd fc b8 c2 aa fa 31 69  00 00 00 00
+              ^ 
+    #0 0x62d212fa10e9 in fuzzymatch /tmp/dmenu-review-corrections-fjivyc9f/ubsan/dmenu.c:598
+    #1 0x62d212f9e59f in keypress /tmp/dmenu-review-corrections-fjivyc9f/ubsan/dmenu.c:855
+    #2 0x62d212f9e59f in run /tmp/dmenu-review-corrections-fjivyc9f/ubsan/dmenu.c:1036
+    #3 0x62d212f9e59f in main /tmp/dmenu-review-corrections-fjivyc9f/ubsan/dmenu.c:1278
+    #4 0x72d54902a1c9 in __libc_start_call_main ../sysdeps/nptl/libc_start_call_main.h:58
+    #5 0x72d54902a28a in __libc_start_main_impl ../csu/libc-start.c:360
+    #6 0x62d212f9eb94 in _start (/tmp/dmenu-review-corrections-fjivyc9f/ubsan/dmenu+0xbb94) (BuildId: 8c034ea341e67834bfddbbb6f28d445573dd53fd)
