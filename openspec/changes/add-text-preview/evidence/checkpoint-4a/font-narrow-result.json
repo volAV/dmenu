@@ -1,0 +1,44 @@
+{
+  "result": "passed",
+  "fonts": [
+    "Liberation Mono:size=8",
+    "DejaVu Sans:size=48"
+  ],
+  "geometry": {
+    "Absolute upper-left X": 5,
+    "Absolute upper-left Y": 5,
+    "Width": 80,
+    "Height": 112
+  },
+  "protected_regions": [
+    [
+      0,
+      0,
+      80,
+      16
+    ],
+    [
+      0,
+      16,
+      32,
+      96
+    ],
+    [
+      32,
+      96,
+      48,
+      16
+    ],
+    [
+      32,
+      32,
+      48,
+      16
+    ]
+  ],
+  "stdout": "alpha\n",
+  "screenshots": [
+    "/tmp/dmenu-preview-4a-tttbbkv1/font-narrow-clipped.png",
+    "/tmp/dmenu-preview-4a-tttbbkv1/font-narrow-safe.png"
+  ]
+}

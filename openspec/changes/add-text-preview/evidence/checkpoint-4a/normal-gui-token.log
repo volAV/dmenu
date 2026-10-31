@@ -1,0 +1,42 @@
+PASS preview-cli-validation: 8 invalid invocations rejected before display access
+PASS helper-status-empty: footer matches No preview; screenshot=/tmp/dmenu-preview-4a-tttbbkv1/normal-gui-token/status-0-empty.png
+PASS helper-status-nonzero: footer matches Unavailable; screenshot=/tmp/dmenu-preview-4a-tttbbkv1/normal-gui-token/status-1-nonzero.png
+PASS helper-status-no-read: footer matches Timed out; screenshot=/tmp/dmenu-preview-4a-tttbbkv1/normal-gui-token/status-2-no-read.png
+PASS helper-status-partial-input: footer matches Unavailable; screenshot=/tmp/dmenu-preview-4a-tttbbkv1/normal-gui-token/status-3-partial-input.png
+PASS helper-status-close-stdout: footer matches Timed out; screenshot=/tmp/dmenu-preview-4a-tttbbkv1/normal-gui-token/status-4-close-stdout.png
+PASS helper-status-descendant-pipe: footer matches Timed out; screenshot=/tmp/dmenu-preview-4a-tttbbkv1/normal-gui-token/status-5-descendant-pipe.png
+PASS helper-group-termination-descendant-pipe: no live group members after observation; zombies=[]
+PASS helper-status-descendant-exit: footer matches successful blank state; screenshot=/tmp/dmenu-preview-4a-tttbbkv1/normal-gui-token/status-6-descendant-exit.png
+PASS helper-group-termination-descendant-exit: no live group members after observation; zombies=[]
+PASS helper-status-early-success: footer matches successful blank state; screenshot=/tmp/dmenu-preview-4a-tttbbkv1/normal-gui-token/status-7-early-success.png
+PASS helper-status-unlimited: footer matches Truncated; screenshot=/tmp/dmenu-preview-4a-tttbbkv1/normal-gui-token/status-8-unlimited.png
+PASS helper-output-65535-bytes-exit-0: terminal-state precedence verified; screenshot=/tmp/dmenu-preview-4a-tttbbkv1/normal-gui-token/status-bytes-65535-exit-0.png
+PASS helper-output-65536-bytes-exit-0: terminal-state precedence verified; screenshot=/tmp/dmenu-preview-4a-tttbbkv1/normal-gui-token/status-bytes-65536-exit-0.png
+PASS helper-output-65537-bytes-exit-0: terminal-state precedence verified; screenshot=/tmp/dmenu-preview-4a-tttbbkv1/normal-gui-token/status-bytes-65537-exit-0.png
+PASS helper-output-65537-bytes-exit-7: terminal-state precedence verified; screenshot=/tmp/dmenu-preview-4a-tttbbkv1/normal-gui-token/status-bytes-65537-exit-7.png
+PASS helper-output-65536-bytes-exit-7: terminal-state precedence verified; screenshot=/tmp/dmenu-preview-4a-tttbbkv1/normal-gui-token/status-bytes-65536-exit-7.png
+PASS helper-single-row-ready: first line rendered; screenshot=/tmp/dmenu-preview-4a-tttbbkv1/normal-gui-token/one-row-multiline.png
+PASS helper-single-row-status: No preview status rendered; screenshot=/tmp/dmenu-preview-4a-tttbbkv1/normal-gui-token/one-row-empty.png
+PASS helper-missing-failure: footer=Unavailable; screenshot=/tmp/dmenu-preview-4a-tttbbkv1/normal-gui-token/status-missing.png
+PASS helper-nonexec-failure: footer=Unavailable; screenshot=/tmp/dmenu-preview-4a-tttbbkv1/normal-gui-token/status-nonexec.png
+PASS helper-no-shebang-failure: footer=Unavailable; screenshot=/tmp/dmenu-preview-4a-tttbbkv1/normal-gui-token/status-no-shebang.png
+PASS helper-argv-env-privacy: argv is executable-only; exact label arrived on LF-terminated stdin then EOF; screenshot=/tmp/dmenu-preview-4a-tttbbkv1/normal-gui-token/literal-label-preview.png
+PASS helper-large-stdin-delivery: 100000 original label bytes plus LF and EOF received
+PASS helper-status-loading: footer matches rendered Loading; screenshot=/tmp/dmenu-preview-4a-tttbbkv1/normal-gui-token/status-loading.png
+PASS helper-delay-output: successful completion rendered; screenshot=/tmp/dmenu-preview-4a-tttbbkv1/normal-gui-token/success-delay-output.png
+PASS helper-delay-exit: successful completion rendered; screenshot=/tmp/dmenu-preview-4a-tttbbkv1/normal-gui-token/success-delay-exit.png
+PASS helper-rapid-selection-debounce: 1 request(s); latest label='blue'
+PASS helper-stale-selection-discard: old start observed; newest output rendered; navigation=0.024s; samples=41 max-gap=0.025s; transients shorter may be missed; evidence=/tmp/dmenu-preview-4a-tttbbkv1/normal-gui-token/stale-intermediate-samples.json
+PASS helper-deadline-under-x11-traffic: Timed out at 0.973s with 97 bounded-rate Expose events; first/max XSync RTT=0.000055/0.000297s
+PASS helper-cancellation-under-x11-traffic: next label helper and Escape completed under 11 Expose events; navigation=0.068s next-start=0.080s cancellation=0.069s; expected BadWindow handled; first/max XSync RTT=0.000154/0.000154s
+PASS helper-blocked-stdin-zero-matches: 100000-byte blocked input cancelled, pane cleared, latency=0.092s
+PASS helper-running-key-Return: stdout/status preserved; elapsed=0.068s; groups terminated
+PASS helper-running-key-shift+Return: stdout/status preserved; elapsed=0.082s; groups terminated
+PASS helper-running-key-ctrl+Return: stdout/status preserved; elapsed=0.336s; groups terminated
+PASS helper-running-key-Escape: stdout/status preserved; elapsed=0.068s; groups terminated
+PASS helper-keyboard-grab-release: a new menu accepted input after output-key completion
+PASS helper-repeated-request-resources: unique_starts=201 active_samples=200 warmup=10 asan=False RSS_budget=64pages post-warmup=2386..2403 fd_count=4..5; raw samples=repeated-resource-samples.json
+PASS helper-repeated-group-cleanup: 201 recorded starts; every group observed within its cancellation bound
+PASS no-preview-process-sampling: samples=12 rss_pages=2359..2359 fd_count=4..4 cpu_ticks=2..2 children=none observed
+PASS helper-window-destruction: menu exited with status 1 after parent destruction
+PASS helper-window-destruction-group: no live group members; zombies=[]

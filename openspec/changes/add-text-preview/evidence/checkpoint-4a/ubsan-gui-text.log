@@ -1,0 +1,3 @@
+PASS pending-layout selection: 0.181s including driver observation
+PASS pending-layout Escape: 0.017s including driver observation
+PASS preview text GUI screenshots: pending-escape.png, one-row-ready.png, alternate-text.png, narrow-oversized-font-alt.png, narrow-oversized-font.png, pending-cancel.png, latest-after-churn.png, latest-after-pending-cancel.png, loading-reference.png, malformed-crlf-wrapped.png, unicode-multiline.png

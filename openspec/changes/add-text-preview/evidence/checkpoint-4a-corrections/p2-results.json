@@ -1,0 +1,84 @@
+[
+  {
+    "command": [
+      "cc",
+      "-std=c99",
+      "-pedantic",
+      "-Wall",
+      "-Wextra",
+      "-g",
+      "-O1",
+      "-D_DEFAULT_SOURCE",
+      "-I/usr/include/freetype2",
+      "tests/preview-clip.c",
+      "drw.c",
+      "util.c",
+      "-lX11",
+      "-lfontconfig",
+      "-lXft",
+      "-o",
+      "/home/avo/.local/state/dmenu-checkpoints/checkpoint-4a-corrections-o3iwvzpa/P2/before/probe"
+    ],
+    "exit": 0
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c99",
+      "-pedantic",
+      "-Wall",
+      "-Wextra",
+      "-g",
+      "-O1",
+      "-D_DEFAULT_SOURCE",
+      "-I/usr/include/freetype2",
+      "tests/preview-clip.c",
+      "drw.c",
+      "util.c",
+      "-lX11",
+      "-lfontconfig",
+      "-lXft",
+      "-o",
+      "/home/avo/.local/state/dmenu-checkpoints/checkpoint-4a-corrections-o3iwvzpa/P2/after/probe"
+    ],
+    "exit": 0
+  },
+  {
+    "command": [
+      "/home/avo/.local/state/dmenu-checkpoints/checkpoint-4a-corrections-o3iwvzpa/P2/before/probe",
+      "/home/avo/.local/state/dmenu-checkpoints/checkpoint-4a-corrections-o3iwvzpa/P2/before/images"
+    ],
+    "env": {
+      "DISPLAY": ":0"
+    },
+    "exit": 1,
+    "metrics": {
+      "advance": 70,
+      "glyph_mismatch": 350,
+      "ellipsis_difference": 0,
+      "blank_difference": 18,
+      "ordinary_ellipsis_mismatch": 0,
+      "prefix_mismatch": 294,
+      "outside_pixels": 0
+    }
+  },
+  {
+    "command": [
+      "/home/avo/.local/state/dmenu-checkpoints/checkpoint-4a-corrections-o3iwvzpa/P2/after/probe",
+      "/home/avo/.local/state/dmenu-checkpoints/checkpoint-4a-corrections-o3iwvzpa/P2/after/images"
+    ],
+    "env": {
+      "DISPLAY": ":0"
+    },
+    "exit": 0,
+    "metrics": {
+      "advance": 70,
+      "glyph_mismatch": 0,
+      "ellipsis_difference": 350,
+      "blank_difference": 342,
+      "ordinary_ellipsis_mismatch": 0,
+      "prefix_mismatch": 0,
+      "outside_pixels": 0
+    }
+  }
+]

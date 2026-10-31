@@ -1,0 +1,37 @@
+{
+  "baseline": {
+    "version_status": 0,
+    "stdout": "dmenu-5.4\n",
+    "stderr": "",
+    "stest_status": 0,
+    "stest_stdout": "dmenu.c\n"
+  },
+  "checkpoint": {
+    "version_status": 0,
+    "stdout": "dmenu-5.4\n",
+    "stderr": "",
+    "stest_status": 0,
+    "stest_stdout": "dmenu.c\n"
+  },
+  "normal": {
+    "version_status": 0,
+    "stdout": "dmenu-5.4\n",
+    "stderr": "",
+    "stest_status": 0,
+    "stest_stdout": "dmenu.c\n"
+  },
+  "ubsan": {
+    "version_status": 0,
+    "stdout": "dmenu-5.4\n",
+    "stderr": "",
+    "stest_status": 0,
+    "stest_stdout": "dmenu.c\n"
+  },
+  "asan": {
+    "version_status": 0,
+    "stdout": "dmenu-5.4\n",
+    "stderr": "",
+    "stest_status": 0,
+    "stest_stdout": "dmenu.c\n"
+  }
+}

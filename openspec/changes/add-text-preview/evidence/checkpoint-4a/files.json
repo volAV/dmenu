@@ -1,0 +1,54 @@
+{
+  "source_files": [
+    "AGENTS.md",
+    "README",
+    "dmenu.1",
+    "dmenu.c",
+    "drw.c",
+    "drw.h",
+    "tests/preview-text.c",
+    "tests/preview-text.py",
+    "openspec/changes/add-text-preview/tasks.md"
+  ],
+  "evidence_files": [
+    "openspec/changes/add-text-preview/evidence/checkpoint-4a/asan-gui-full.log",
+    "openspec/changes/add-text-preview/evidence/checkpoint-4a/asan-gui-text.log",
+    "openspec/changes/add-text-preview/evidence/checkpoint-4a/asan-gui-token.log",
+    "openspec/changes/add-text-preview/evidence/checkpoint-4a/asan-preview-text.log",
+    "openspec/changes/add-text-preview/evidence/checkpoint-4a/commands-and-builds.tar.gz",
+    "openspec/changes/add-text-preview/evidence/checkpoint-4a/files.json",
+    "openspec/changes/add-text-preview/evidence/checkpoint-4a/font-clipped.png",
+    "openspec/changes/add-text-preview/evidence/checkpoint-4a/font-narrow-clipped.png",
+    "openspec/changes/add-text-preview/evidence/checkpoint-4a/font-narrow-result.json",
+    "openspec/changes/add-text-preview/evidence/checkpoint-4a/font-result.json",
+    "openspec/changes/add-text-preview/evidence/checkpoint-4a/fuzzy-matrix.json",
+    "openspec/changes/add-text-preview/evidence/checkpoint-4a/lifecycle-artifacts.tar.gz",
+    "openspec/changes/add-text-preview/evidence/checkpoint-4a/malformed-crlf-wrapped.png",
+    "openspec/changes/add-text-preview/evidence/checkpoint-4a/narrow-oversized-font.png",
+    "openspec/changes/add-text-preview/evidence/checkpoint-4a/normal-gui-full.log",
+    "openspec/changes/add-text-preview/evidence/checkpoint-4a/normal-gui-text.log",
+    "openspec/changes/add-text-preview/evidence/checkpoint-4a/normal-gui-token.log",
+    "openspec/changes/add-text-preview/evidence/checkpoint-4a/normal-preview-text.log",
+    "openspec/changes/add-text-preview/evidence/checkpoint-4a/preservation.json",
+    "openspec/changes/add-text-preview/evidence/checkpoint-4a/report.md",
+    "openspec/changes/add-text-preview/evidence/checkpoint-4a/smoke.json",
+    "openspec/changes/add-text-preview/evidence/checkpoint-4a/source-files.json",
+    "openspec/changes/add-text-preview/evidence/checkpoint-4a/source.diff",
+    "openspec/changes/add-text-preview/evidence/checkpoint-4a/summary.json",
+    "openspec/changes/add-text-preview/evidence/checkpoint-4a/text-artifacts.tar.gz",
+    "openspec/changes/add-text-preview/evidence/checkpoint-4a/token-lifecycle-artifacts.tar.gz",
+    "openspec/changes/add-text-preview/evidence/checkpoint-4a/ubsan-gui-full.log",
+    "openspec/changes/add-text-preview/evidence/checkpoint-4a/ubsan-gui-text.log",
+    "openspec/changes/add-text-preview/evidence/checkpoint-4a/ubsan-gui-token.log",
+    "openspec/changes/add-text-preview/evidence/checkpoint-4a/ubsan-preview-text.log",
+    "openspec/changes/add-text-preview/evidence/checkpoint-4a/unicode-multiline.png",
+    "openspec/changes/add-text-preview/evidence/checkpoint-4a/validation.log"
+  ],
+  "generated_untracked_files": [
+    {
+      "path": "config.h",
+      "source": "make config.h from config.def.h",
+      "sha256": "a15a16ad70ec24f2e1e6e3affcc611c107f61d9528d33480c076e6f7c3f58c74"
+    }
+  ]
+}

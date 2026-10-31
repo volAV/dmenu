@@ -1,5 +1,5 @@
 /* See LICENSE file for copyright and license details. */
-#include <stdio.h>
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 #include <X11/Xlib.h>
@@ -244,8 +244,9 @@ drw_rect(Drw *drw, int x, int y, unsigned int w, unsigned int h, int filled, int
 		XDrawRectangle(drw->dpy, drw->drawable, drw->gc, x, y, w - 1, h - 1);
 }
 
-int
-drw_text(Drw *drw, int x, int y, unsigned int w, unsigned int h, unsigned int lpad, const char *text, int invert)
+static int
+drw_text_impl(Drw *drw, int x, int y, unsigned int w, unsigned int h,
+              unsigned int lpad, const char *text, int invert, int clip)
 {
 	int ty, ellipsis_x = 0;
 	unsigned int tmpw, ew, ellipsis_w = 0, ellipsis_len, hash, h0, h1;
@@ -276,6 +277,10 @@ drw_text(Drw *drw, int x, int y, unsigned int w, unsigned int h, unsigned int lp
 		d = XftDrawCreate(drw->dpy, drw->drawable,
 		                  DefaultVisual(drw->dpy, drw->screen),
 		                  DefaultColormap(drw->dpy, drw->screen));
+		if (clip) {
+			XRectangle rect = { x, y, MIN(w, USHRT_MAX), MIN(h, USHRT_MAX) };
+			XftDrawSetClipRectangles(d, 0, 0, &rect, 1);
+		}
 		x += lpad;
 		w -= lpad;
 	}
@@ -307,7 +312,19 @@ drw_text(Drw *drw, int x, int y, unsigned int w, unsigned int h, unsigned int lp
 						/* called from drw_fontset_getwidth_clamp():
 						 * it wants the width AFTER the overflow
 						 */
-						if (!render)
+						if (clip) {
+							if (utf8strlen && curfont != usedfont) {
+								/* Flush the prefix before switching glyph fonts. */
+								overflow = 0;
+								nextfont = curfont;
+								break;
+							}
+							/* Consume the glyph; only the drawing rectangle clips its ink. */
+							usedfont = curfont;
+							utf8strlen += utf8charlen;
+							ew = w;
+							text += utf8charlen;
+						} else if (!render)
 							x += tmpw;
 						else
 							utf8strlen = ellipsis_len;
@@ -330,21 +347,25 @@ drw_text(Drw *drw, int x, int y, unsigned int w, unsigned int h, unsigned int lp
 
 		if (utf8strlen) {
 			if (render) {
-				ty = y + (h - usedfont->h) / 2 + usedfont->xfont->ascent;
+				if (clip)
+					ty = y + ((int)h - (int)usedfont->h) / 2 + usedfont->xfont->ascent;
+				else
+					ty = y + (h - usedfont->h) / 2 + usedfont->xfont->ascent;
 				XftDrawStringUtf8(d, &drw->scheme[invert ? ColBg : ColFg],
 				                  usedfont->xfont, x, ty, (XftChar8 *)utf8str, utf8strlen);
 			}
 			x += ew;
 			w -= ew;
 		}
+
 		if (utf8err && (!render || invalid_width < w)) {
 			if (render)
-				drw_text(drw, x, y, w, h, 0, invalid, invert);
+				drw_text_impl(drw, x, y, w, h, 0, invalid, invert, clip);
 			x += invalid_width;
 			w -= invalid_width;
 		}
-		if (render && overflow)
-			drw_text(drw, ellipsis_x, y, ellipsis_w, h, 0, "...", invert);
+		if (render && overflow && !clip)
+			drw_text_impl(drw, ellipsis_x, y, ellipsis_w, h, 0, "...", invert, clip);
 
 		if (!*text || overflow) {
 			break;
@@ -399,10 +420,23 @@ no_match:
 			}
 		}
 	}
+
 	if (d)
 		XftDrawDestroy(d);
 
 	return x + (render ? w : 0);
+}
+
+int
+drw_text(Drw *drw, int x, int y, unsigned int w, unsigned int h, unsigned int lpad, const char *text, int invert)
+{
+	return drw_text_impl(drw, x, y, w, h, lpad, text, invert, 0);
+}
+
+int
+drw_text_clip(Drw *drw, int x, int y, unsigned int w, unsigned int h, unsigned int lpad, const char *text, int invert)
+{
+	return drw_text_impl(drw, x, y, w, h, lpad, text, invert, 1);
 }
 
 void

@@ -35,7 +35,7 @@ Xinerama is optional by disabling its two settings there.
 | --- | --- | --- |
 | Build | `make` | Builds `dmenu` and `stest`; uses existing `config.h`. |
 | Clean build outputs | `make clean` | Removes binaries, objects, and the versioned release tarball; keeps `config.h`. |
-| Install | `make install` | Uses `PREFIX` and `MANPREFIX`; current prefix is `~/.local`, not README's `/usr/local`. |
+| Install | `make install` | Uses `PREFIX` and `MANPREFIX`; distributed prefix is `/usr/local`, while local `config.mk` overrides may differ. |
 | Staged install | `make install DESTDIR=/tmp/dmenu-stage PREFIX=/usr` | Choose a disposable staging directory; does not install into the host `/usr`. |
 | Source archive | `make dist` | Runs clean, then packages the Makefile's explicit source list, not every repository file. |
 | Shell syntax | `sh -n dmenu_path && sh -n dmenu_run` | Checks both launchers without executing them. |
@@ -88,8 +88,8 @@ For launcher changes, also check shell syntax and discovery/execution with
 isolated cache/PATH and benign inputs. For install changes, stage installation
 and inspect binaries/scripts and manuals rather than overwriting host files.
 
-The `add-text-preview` implementation is authorized through the asynchronous
-helper lifecycle checkpoint, not final text rendering, scrolling or clipmenu.
+The `add-text-preview` implementation is authorized through Checkpoint 4A:
+safe UTF-8/control preparation and soft wrapping, but not scrolling or clipmenu.
 `-P /absolute/helper` requires an explicit positive decimal `-l`. The executable
 receives the selected label plus LF on stdin; argv/environment never carry it.
 The single helper group uses nonblocking I/O, 40 ms debounce, a 1000 ms deadline
@@ -104,13 +104,34 @@ untouched. Run `python3 tests/preview-checkpoint.py --baseline /absolute/baselin
 --binary /absolute/new --output /tmp/screenshots --isolated-display` as one command,
 with DISPLAY set only to an owned disposable Xvfb/Xephyr server. Tests use xdotool,
 xwininfo and ImageMagick; never point them at real history or the working desktop.
-Do not install this checkpoint; full sanitization/wrapping/scrolling remain pending.
+Do not install this checkpoint; scrolling and clipmenu remain pending.
 The GUI harness requires an empty output directory, confirms at least 200 real
 helper starts, and retains stderr on every outcome. Byte-exact collection uses
 `tests/preview-boundary.c`, including the real private lifecycle functions;
 build/run commands are in README. Its producer must be the uninstrumented
 normal probe even when the parent is sanitized, because helper stderr is discarded.
 Record leak-disabled ASan coverage separately from leak-enabled exit diagnostics.
+`tests/preview-text.c` includes the production incremental text preparation and
+uses deterministic metrics; `PREVIEW_TEXT_HELPER` must name the normal probe
+even for sanitized parents. `tests/preview-text.py --binary /absolute/dmenu
+--layout-probe /absolute/preview-text --clip-probe /absolute/preview-clip
+--output /tmp/text-results --isolated-display` adds synthetic safe-text, wrapping,
+font/clipping and pending-layout interaction checks on an owned X server.
+`tests/preview-clip.c` compares real overwide-glyph pixels against independent
+Xft clipping, ellipsis and blank references. These probes are test-only,
+not production CLI options.
+Preparation handles at most 256 codepoints per event-loop turn, including tab
+expansion, and yields after a 4 ms monotonic budget between glyphs. A single
+synchronous Xft lookup cannot be interrupted by that budget.
+`tests/preview-fonts.py --short --baseline-source /absolute/starting-copy
+--corrected-source /absolute/current-copy --xvfb /absolute/Xvfb
+--output /tmp/font-results` measures 1/8 KiB real-font fallback and keyboard
+latency on its own disposable server; source copies must contain `config.h`.
+The helper collection deadline and raw cap are unchanged. Display storage
+is at most 4 * raw length + 1 bytes, with at most that many size_t row entries.
+LF preserves empty/trailing rows; CR and unsafe controls become U+FFFD, and
+tabs use four codepoint-column stops reset only by LF. Xft glyph ink is clipped
+to the preview row; grapheme shaping and font coverage are not extended.
 The reviewed fuzzy bounds fix is integrated independently of preview features.
 `tests/fuzzymatch.c` includes production matching code and asserts unequal-score
 ordering by default; `a a` is the original single-match ASan reproducer.

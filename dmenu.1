@@ -98,9 +98,21 @@ owned helper group and closes pipes without blocking for exit. Cooperative
 descendants are included; descendants intentionally leaving the group are not
 contained. Keyboard release and menu exit never wait for helper termination.
 .IP
-This checkpoint clips lines and shows only the visible prefix. Final text
-sanitization, soft wrapping, scrolling and clipboard integration are not yet
-implemented. Enter still outputs the original label, never preview content.
+This checkpoint shows the initial visible portion of soft-wrapped text.
+LF preserves empty and trailing lines; tabs expand to four codepoint-column
+stops, reset by LF but not soft wraps. CR, NUL, ESC, other C0/C1 controls,
+DEL and invalid UTF-8 bytes become U+FFFD. Terminal escapes are not interpreted.
+Valid UTF-8 wraps at codepoint boundaries using the active font metrics;
+glyph ink is clipped to the preview row. Full grapheme shaping and glyph
+coverage remain limited by Xft and the available fonts.
+.IP
+Preparation handles at most 256 codepoints per event-loop turn, including
+expanded tab spaces, and is cancelled on selection changes. Loading remains
+visible until layout is complete. The helper deadline does not include layout.
+Display storage is separately bounded to four bytes per retained raw byte plus
+one terminator, with at most that many row-offset entries.
+Scrolling and clipboard integration are not yet implemented.
+Enter still outputs the original label, never preview content.
 Without
 .BR \-P ,
 the existing menu execution and appearance remain unchanged.

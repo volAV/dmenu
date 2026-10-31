@@ -1,0 +1,72 @@
+{
+  "results": [
+    {
+      "source": "preview-text-starting-4a",
+      "raw_bytes": 1024,
+      "Escape": {
+        "n": 3,
+        "median_ms": 331.154694,
+        "max_ms": 333.075587
+      },
+      "Return": {
+        "n": 3,
+        "median_ms": 331.729342,
+        "max_ms": 331.746806
+      },
+      "max_step_ms": 327.560562,
+      "max_glyph_ms": 3.351172
+    },
+    {
+      "source": "preview-text-starting-4a",
+      "raw_bytes": 8192,
+      "Escape": {
+        "n": 3,
+        "median_ms": 331.753184,
+        "max_ms": 333.346028
+      },
+      "Return": {
+        "n": 3,
+        "median_ms": 331.924068,
+        "max_ms": 332.736753
+      },
+      "max_step_ms": 432.582393,
+      "max_glyph_ms": 2.937211
+    },
+    {
+      "source": "preview-text-corrected",
+      "raw_bytes": 1024,
+      "Escape": {
+        "n": 3,
+        "median_ms": 17.303583,
+        "max_ms": 17.45306
+      },
+      "Return": {
+        "n": 3,
+        "median_ms": 17.126791,
+        "max_ms": 17.320657
+      },
+      "max_step_ms": 6.150188,
+      "max_glyph_ms": 3.465273
+    },
+    {
+      "source": "preview-text-corrected",
+      "raw_bytes": 8192,
+      "Escape": {
+        "n": 3,
+        "median_ms": 16.159893,
+        "max_ms": 17.326526
+      },
+      "Return": {
+        "n": 3,
+        "median_ms": 17.021627,
+        "max_ms": 17.195281
+      },
+      "max_step_ms": 6.129199,
+      "max_glyph_ms": 3.380256
+    }
+  ],
+  "raw_evidence": "/home/avo/.local/state/dmenu-checkpoints/p1-focused-a4pye5re/fonts-final",
+  "width_sequences_identical": true,
+  "latency_includes_injector_and_exit_observation": true,
+  "production_changes_this_session": false
+}

@@ -76,10 +76,15 @@ static struct {
 	int input, output, state;
 	int64_t due, deadline;
 	size_t sent, inputlen, used;
-	char *buf;
+	char *buf, *display;
+	size_t *rows;
+	size_t displayused, rowcount, rawpos;
+	unsigned int prepwidth, rowwidth, column, prepwork;
+	int prepared, tabspaces;
 } preview = { .input = -1, .output = -1 };
 
 static void drawmenu(void);
+static void previewprepare_reset(void);
 
 static int64_t
 previewtime(void)
@@ -132,15 +137,179 @@ previewfail(int state)
 	preview.state = state;
 	preview.used = 0;
 	preview.buf[0] = '\0';
+	previewprepare_reset();
 	previewstop();
 }
 
+static void
+previewprepare_reset(void)
+{
+	free(preview.display);
+	free(preview.rows);
+	preview.display = NULL;
+	preview.rows = NULL;
+	preview.displayused = preview.rowcount = 0;
+	preview.rawpos = 0;
+	preview.rowwidth = preview.column = preview.prepwork = 0;
+	preview.tabspaces = 0;
+	preview.prepared = 0;
+}
+
+static void
+previewprepare_start(unsigned int maxwidth)
+{
+	size_t displaycap, rowcap;
+
+	previewprepare_reset();
+	if (preview.used > (SIZE_MAX - 1) / 4)
+		return;
+	displaycap = preview.used * 4 + 1;
+	if (displaycap > SIZE_MAX / sizeof(*preview.rows))
+		return;
+	rowcap = displaycap;
+	preview.display = ecalloc(displaycap, 1);
+	preview.rows = ecalloc(rowcap, sizeof(*preview.rows));
+	preview.prepwidth = MAX(maxwidth, 1);
+	preview.rowcount = 1;
+	preview.prepared = 0;
+}
+
+static int
+previewprepare_pending(void)
+{
+	return preview.display && !preview.prepared;
+}
+
+static size_t
+previewutf8(size_t pos, unsigned long *cp)
+{
+	const unsigned char *s = (unsigned char *)preview.buf + pos;
+	size_t left = preview.used - pos, n, i;
+	unsigned long value, min;
+
+	if (s[0] < 0x80) {
+		*cp = s[0];
+		return 1;
+	}
+	if (s[0] >= 0xc2 && s[0] <= 0xdf)
+		n = 2, value = s[0] & 0x1f, min = 0x80;
+	else if (s[0] >= 0xe0 && s[0] <= 0xef)
+		n = 3, value = s[0] & 0x0f, min = 0x800;
+	else if (s[0] >= 0xf0 && s[0] <= 0xf4)
+		n = 4, value = s[0] & 0x07, min = 0x10000;
+	else
+		return 0;
+	if (left < n)
+		return 0;
+	for (i = 1; i < n; i++) {
+		if ((s[i] & 0xc0) != 0x80)
+			return 0;
+		value = (value << 6) | (s[i] & 0x3f);
+	}
+	if (value < min || value > 0x10ffff ||
+	    (value >= 0xd800 && value <= 0xdfff))
+		return 0;
+	*cp = value;
+	return n;
+}
+
+static void
+previewrowend(size_t end)
+{
+	if (preview.rowcount <= preview.used * 4 + 1)
+		preview.rows[preview.rowcount - 1] = end;
+	preview.rowcount++;
+	preview.rowwidth = 0;
+}
+
+static int
+previewprepare_step(void)
+{
+	static const char replacement[] = "\xef\xbf\xbd";
+	char glyph[5];
+	unsigned long cp;
+	size_t n;
+	unsigned int width, measured;
+	int64_t deadline = previewtime() + 4;
+
+	preview.prepwork = 0;
+	/* One synchronous Xft lookup may exceed the budget; finish its unit first. */
+	while (preview.prepwork < 256 &&
+	       (preview.rawpos < preview.used || preview.tabspaces) &&
+	       (!preview.prepwork || previewtime() < deadline)) {
+		if (preview.tabspaces) {
+			glyph[0] = ' ';
+			glyph[1] = '\0';
+			measured = drw_fontset_getwidth(drw, glyph);
+			width = MIN(measured, preview.prepwidth);
+			if (preview.rowwidth &&
+			    (measured > preview.prepwidth ||
+			     width > preview.prepwidth - MIN(preview.rowwidth, preview.prepwidth)))
+				previewrowend(preview.displayused);
+			preview.display[preview.displayused++] = ' ';
+			preview.rowwidth += width;
+			preview.column++;
+			preview.tabspaces--;
+			preview.prepwork++;
+			continue;
+		}
+		n = previewutf8(preview.rawpos, &cp);
+		if (!n) {
+			cp = 0xfffd;
+			n = 1;
+		}
+		preview.rawpos += n;
+		preview.prepwork++;
+		if (cp == '\n') {
+			previewrowend(preview.displayused);
+			preview.display[preview.displayused++] = '\0';
+			preview.column = preview.rowwidth = 0;
+			continue;
+		}
+		if (cp == '\t') {
+			/* Soft wraps do not reset the four-column tab stops. */
+			preview.tabspaces = 4 - preview.column % 4;
+			continue;
+		}
+		if (!cp || cp == '\r' || cp == 0x1b || cp < 0x20 ||
+		    (cp >= 0x7f && cp <= 0x9f))
+			cp = 0xfffd;
+		if (cp == 0xfffd) {
+			memcpy(glyph, replacement, sizeof(replacement));
+			n = sizeof(replacement) - 1;
+		} else {
+			memcpy(glyph, preview.buf + preview.rawpos - n, n);
+			glyph[n] = '\0';
+		}
+		measured = drw_fontset_getwidth(drw, glyph);
+		width = MIN(measured, preview.prepwidth);
+		if (preview.rowwidth &&
+		    (measured > preview.prepwidth ||
+		     width > preview.prepwidth - MIN(preview.rowwidth, preview.prepwidth)))
+			previewrowend(preview.displayused);
+		if (preview.displayused + n >= preview.used * 4 + 1) {
+			previewprepare_reset();
+			return 0;
+		}
+		memcpy(preview.display + preview.displayused, glyph, n);
+		preview.displayused += n;
+		preview.rowwidth += width;
+		preview.column++;
+	}
+	if (preview.rawpos == preview.used && !preview.tabspaces) {
+		preview.rows[preview.rowcount - 1] = preview.displayused;
+		preview.prepared = 1;
+		return 1;
+	}
+	return 0;
+}
 static void
 previewselect(void)
 {
 	if (preview.item == sel)
 		return;
 	previewstop();
+	previewprepare_reset();
 	preview.item = sel;
 	preview.generation++;
 	preview.used = 0;
@@ -317,16 +486,24 @@ static void
 previewwait(void)
 {
 	struct pollfd fds[3];
-	int state, timeout = -1, result;
+	int state, timeout = -1, result, prepared;
 	int64_t now;
 
 	state = preview.state;
+	prepared = preview.prepared;
 	previewstep();
-	if (state != preview.state)
+	if ((preview.state == PreviewReady || preview.state == PreviewTruncated) &&
+	    preview.used && !preview.display)
+		previewprepare_start(mw - (itemw + 1) - lrpad / 2);
+	if (previewprepare_pending())
+		previewprepare_step();
+	if (state != preview.state || (!prepared && preview.prepared))
 		drawmenu();
 	now = previewtime();
 	if (preview.pid)
 		timeout = 20;
+	if (previewprepare_pending())
+		timeout = 0;
 	if (preview.deadline)
 		timeout = MIN(timeout, MAX(0, preview.deadline - now));
 	else if (!preview.pid && preview.due)
@@ -345,7 +522,7 @@ previewwait(void)
 		}
 		return;
 	}
-	state = preview.state;
+	prepared = preview.prepared;
 	if ((fds[1].revents | fds[2].revents) & POLLNVAL)
 		previewfail(PreviewUnavailable);
 	if (preview.input >= 0 && (fds[1].revents & (POLLOUT | POLLHUP | POLLERR)))
@@ -353,7 +530,7 @@ previewwait(void)
 	if (preview.output >= 0 && (fds[2].revents & (POLLIN | POLLHUP | POLLERR)))
 		previewread();
 	previewstep();
-	if (state != preview.state)
+	if (state != preview.state || (!prepared && preview.prepared))
 		drawmenu();
 }
 
@@ -405,6 +582,7 @@ cleanup(void)
 		XFlush(dpy);
 		previewstop();
 		free(preview.buf);
+		previewprepare_reset();
 	}
 	for (i = 0; i < SchemeLast; i++)
 		drw_scm_free(drw, scheme[i], 2);
@@ -453,30 +631,34 @@ drawpreview(void)
 	static const char *states[] = {
 		"", "Loading", "", "No preview", "Unavailable", "Timed out", "Truncated"
 	};
-	int x = itemw + 1;
-	unsigned int row, count;
-	size_t offset = 0, length;
-	char *end, saved;
+	int x = itemw + 1, state;
+	unsigned int row, count, y;
+	size_t start = 0, end;
+	char saved;
 
 	drw_setscheme(drw, scheme[SchemeNorm]);
 	drw_rect(drw, itemw, bh, 1, mh - bh, 1, 0);
 	if (!sel || preview.item != sel)
 		return;
-	count = lines > 1 ? lines - 1 : (preview.state == PreviewReady);
-	if (preview.state == PreviewReady || preview.state == PreviewTruncated)
-		for (row = 0; row < count && offset < preview.used; row++) {
-			end = memchr(preview.buf + offset, '\n', preview.used - offset);
-			length = end ? (size_t)(end - preview.buf) : preview.used;
-			saved = preview.buf[length];
-			preview.buf[length] = '\0';
-			drw_text(drw, x, (row + 1) * bh, mw - x, bh,
-			         lrpad / 2, preview.buf + offset, 0);
-			preview.buf[length] = saved;
-			offset = length + 1;
+	state = preview.state;
+	if ((state == PreviewReady || state == PreviewTruncated) && !preview.prepared)
+		state = PreviewLoading;
+	count = lines > 1 ? lines - 1 : (state == PreviewReady);
+	if (preview.prepared && (preview.state == PreviewReady ||
+	                         preview.state == PreviewTruncated))
+		for (row = 0; row < count && row < preview.rowcount; row++) {
+			end = preview.rows[row];
+			saved = preview.display[end];
+			preview.display[end] = '\0';
+			y = (row + 1) * bh;
+			drw_text_clip(drw, x, y, mw - x, bh, lrpad / 2,
+			              preview.display + start, 0);
+			preview.display[end] = saved;
+			start = end + (end < preview.displayused && saved == '\0');
 		}
-	if (preview.state != PreviewReady)
-		drw_text(drw, x, lines * bh, mw - x, bh, lrpad / 2,
-		         states[preview.state], 0);
+	if (state != PreviewReady)
+		drw_text_clip(drw, x, lines * bh, mw - x, bh, lrpad / 2,
+		              states[state], 0);
 }
 
 static void

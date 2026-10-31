@@ -1,0 +1,56 @@
+[
+  {
+    "path": "AGENTS.md",
+    "added": 16,
+    "removed": 4,
+    "sha256": "74628a28207c57e2219df4061fd1d3cda2f722e08fdc272d172cf39be44f5691"
+  },
+  {
+    "path": "README",
+    "added": 44,
+    "removed": 6,
+    "sha256": "2f2ce6075a974b49474e3d42b6a4f0b4eda8ce86bbb7fc834f6a32589e0fc895"
+  },
+  {
+    "path": "dmenu.1",
+    "added": 15,
+    "removed": 3,
+    "sha256": "af465639129453ea0597db7fb44a88fd0e173a875fad66441c0837a6c7c81286"
+  },
+  {
+    "path": "dmenu.c",
+    "added": 203,
+    "removed": 24,
+    "sha256": "bb68aebb77b9ab77f337d23d14d9662ae5a79036e4ae603f75416d5722294078"
+  },
+  {
+    "path": "drw.c",
+    "added": 35,
+    "removed": 7,
+    "sha256": "073e60c8d6d95fe617be5e40d15d26385e4991c23008cf8b83ff9277780fe350"
+  },
+  {
+    "path": "drw.h",
+    "added": 1,
+    "removed": 0,
+    "sha256": "fb4d20116396602922b349227278d4c271301ba934166d1b323b618d6b9bd3b2"
+  },
+  {
+    "path": "tests/preview-text.c",
+    "added": 368,
+    "removed": 0,
+    "sha256": "5860b5763ae1cbefaec8e7560cd0c14f90a2b356ceb3829f8f115a549342a547"
+  },
+  {
+    "path": "tests/preview-text.py",
+    "added": 331,
+    "removed": 0,
+    "sha256": "3fff55162607b6914aafa3b58ceed177c3260ff399b0e06f3e4beb492ce85f33"
+  },
+  {
+    "path": "openspec/changes/add-text-preview/tasks.md",
+    "added": 12,
+    "removed": 2,
+    "sha256": "eb8ad38b5868814db8a48fd6d8635ec4fa67a3742019d9256f5e5531611010ad"
+  }
+]

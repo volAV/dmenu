@@ -1,0 +1,1307 @@
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -35,7 +35,7 @@
+ | --- | --- | --- |
+ | Build | `make` | Builds `dmenu` and `stest`; uses existing `config.h`. |
+ | Clean build outputs | `make clean` | Removes binaries, objects, and the versioned release tarball; keeps `config.h`. |
+-| Install | `make install` | Uses `PREFIX` and `MANPREFIX`; current prefix is `~/.local`, not README's `/usr/local`. |
++| Install | `make install` | Uses `PREFIX` and `MANPREFIX`; distributed prefix is `/usr/local`, while local `config.mk` overrides may differ. |
+ | Staged install | `make install DESTDIR=/tmp/dmenu-stage PREFIX=/usr` | Choose a disposable staging directory; does not install into the host `/usr`. |
+ | Source archive | `make dist` | Runs clean, then packages the Makefile's explicit source list, not every repository file. |
+ | Shell syntax | `sh -n dmenu_path && sh -n dmenu_run` | Checks both launchers without executing them. |
+@@ -88,8 +88,8 @@
+ isolated cache/PATH and benign inputs. For install changes, stage installation
+ and inspect binaries/scripts and manuals rather than overwriting host files.
+ 
+-The `add-text-preview` implementation is authorized through the asynchronous
+-helper lifecycle checkpoint, not final text rendering, scrolling or clipmenu.
++The `add-text-preview` implementation is authorized through Checkpoint 4A:
++safe UTF-8/control preparation and soft wrapping, but not scrolling or clipmenu.
+ `-P /absolute/helper` requires an explicit positive decimal `-l`. The executable
+ receives the selected label plus LF on stdin; argv/environment never carry it.
+ The single helper group uses nonblocking I/O, 40 ms debounce, a 1000 ms deadline
+@@ -104,13 +104,25 @@
+ --binary /absolute/new --output /tmp/screenshots --isolated-display` as one command,
+ with DISPLAY set only to an owned disposable Xvfb/Xephyr server. Tests use xdotool,
+ xwininfo and ImageMagick; never point them at real history or the working desktop.
+-Do not install this checkpoint; full sanitization/wrapping/scrolling remain pending.
++Do not install this checkpoint; scrolling and clipmenu remain pending.
+ The GUI harness requires an empty output directory, confirms at least 200 real
+ helper starts, and retains stderr on every outcome. Byte-exact collection uses
+ `tests/preview-boundary.c`, including the real private lifecycle functions;
+ build/run commands are in README. Its producer must be the uninstrumented
+ normal probe even when the parent is sanitized, because helper stderr is discarded.
+ Record leak-disabled ASan coverage separately from leak-enabled exit diagnostics.
++`tests/preview-text.c` includes the production incremental text preparation and
++uses deterministic metrics; `PREVIEW_TEXT_HELPER` must name the normal probe
++even for sanitized parents. `tests/preview-text.py --binary /absolute/dmenu
++--layout-probe /absolute/preview-text --output /tmp/text-results --isolated-display`
++adds synthetic safe-text, wrapping, font/clipping and pending-layout interaction
++checks on an owned X server. The layout probe is test-only, not a production CLI.
++Preparation handles at most 256 codepoints per event-loop turn, including tab
++expansion; helper collection deadline and raw cap are unchanged. Display storage
++is at most 4 * raw length + 1 bytes, with at most that many size_t row entries.
++LF preserves empty/trailing rows; CR and unsafe controls become U+FFFD, and
++tabs use four codepoint-column stops reset only by LF. Xft glyph ink is clipped
++to the preview row; grapheme shaping and font coverage are not extended.
+ The reviewed fuzzy bounds fix is integrated independently of preview features.
+ `tests/fuzzymatch.c` includes production matching code and asserts unequal-score
+ ordering by default; `a a` is the original single-match ASan reproducer.
+--- a/README
++++ b/README
+@@ -24,8 +24,8 @@
+ See the man page for details.
+ 
+ 
+-Asynchronous preview checkpoint (development only)
+--------------------------------------------------
++Text preparation checkpoint 4A (development only)
++------------------------------------------------
+ `-P /absolute/helper -l 12` runs a trusted executable directly and draws its
+ text in the approved 40/60 split below the search input. The helper receives
+ the unchanged selected label plus LF through stdin, then EOF. Its argv has
+@@ -47,17 +47,34 @@
+ Without `-P`, dmenu still blocks in XNextEvent without preview allocations,
+ children or periodic polling.
+ 
+-The last body row is reserved for status; preceding rows display clipped
+-newline-separated output. With one body row, Ready displays its first line
+-and other states display status. Final UTF-8/control sanitization, wrapping,
+-scrolling and clipmenu integration are not implemented. Do not deploy this
++The last body row is reserved for status; preceding rows display the initial
++visible portion of soft-wrapped text. With one body row, Ready displays its
++first row and other states display status. LF preserves explicit empty and
++trailing rows. CR (including CRLF's CR), NUL, ESC, remaining C0/C1 controls,
++DEL and invalid UTF-8 bytes become U+FFFD; terminal escapes are not interpreted.
++Tabs expand to four codepoint-column stops, reset on LF but not soft wraps.
++Valid UTF-8 is retained. Wrapping uses the active Xft scalar advances, never
++splits a codepoint, and clips glyph ink to each preview row. Grapheme clusters,
++complex shaping and missing-font glyph coverage retain existing Xft limitations.
++
++Preparation processes at most 256 codepoints per event-loop turn, counting
++expanded tab spaces as work. Loading remains visible until layout is complete;
++selection changes discard pending layout. The helper deadline ends at completed
++collection, not layout. Raw storage remains 65537 bytes; display storage is at
++most 4 * retained raw bytes + 1, and row offsets have at most that many size_t
++entries (262145 display bytes and 262145 entries at the raw cap). These separate
++allocation ceilings include sanitization expansion and narrow-pane wrapping.
++Only pending preparation uses zero-timeout polling.
++
++Scrolling and clipmenu integration are not implemented. Do not deploy this
+ checkpoint as a finished clipboard UI or replace a working installed dmenu.
+ 
+ Build and test only disposable source copies, preserving configuration and
+ existing binaries/objects:
+ 
+     work=$(mktemp -d /tmp/dmenu-preview-async.XXXXXX)
+-    cp Makefile config.mk *.c *.h "$work/"
++    cp Makefile config.mk *.c config.def.h arg.h drw.h util.h "$work/"
++    make -C "$work" config.h
+     make -C "$work" CC='cc -Wextra'
+     cat > "$work/preview" <<'EOF'
+     #!/bin/sh
+@@ -129,6 +146,26 @@
+ production protocol discards helper stderr. Parent diagnostics remain captured.
+ The native probe can run with leak detection enabled.
+ 
++Safe-text regression checks use `tests/preview-text.c`, which includes the
++production scanner/layout with deterministic font advances and an explicit
++256-codepoint progress check. Build it like preview-boundary, substituting
++preview-text for the target and source name. Run with
++`PREVIEW_TEXT_HELPER=/absolute/normal/preview-text /absolute/build/preview-text`;
++the producer must be the normal uninstrumented probe even for sanitized parents.
++Native leak detection stays enabled. This checks a real completed helper whose
++deliberately slow preparation finishes beyond the helper deadline.
++
++On an owned isolated X11 server, run:
++
++    python3 tests/preview-text.py --binary /absolute/build/dmenu \
++        --layout-probe /absolute/build/preview-text \
++        --output /tmp/text-results --isolated-display
++
++Use an empty output directory. Synthetic helpers cover Unicode, malformed/control
++bytes, wrapping, narrow panes and alternate fonts; screenshots and process stderr
++are retained. The test-only layout probe delays font measurement to make pending
++preparation and cancellation observable without a production hook or option.
++
+ For focused ASan lifecycle checks in both fuzzy and token modes,
+ `ASAN_OPTIONS=detect_leaks=0` isolates invalid accesses from the known Fontconfig
+ exit leak; address checks remain enabled and this is not a leak-clean claim.
+--- a/dmenu.1
++++ b/dmenu.1
+@@ -98,9 +98,21 @@
+ descendants are included; descendants intentionally leaving the group are not
+ contained. Keyboard release and menu exit never wait for helper termination.
+ .IP
+-This checkpoint clips lines and shows only the visible prefix. Final text
+-sanitization, soft wrapping, scrolling and clipboard integration are not yet
+-implemented. Enter still outputs the original label, never preview content.
++This checkpoint shows the initial visible portion of soft-wrapped text.
++LF preserves empty and trailing lines; tabs expand to four codepoint-column
++stops, reset by LF but not soft wraps. CR, NUL, ESC, other C0/C1 controls,
++DEL and invalid UTF-8 bytes become U+FFFD. Terminal escapes are not interpreted.
++Valid UTF-8 wraps at codepoint boundaries using the active font metrics;
++glyph ink is clipped to the preview row. Full grapheme shaping and glyph
++coverage remain limited by Xft and the available fonts.
++.IP
++Preparation handles at most 256 codepoints per event-loop turn, including
++expanded tab spaces, and is cancelled on selection changes. Loading remains
++visible until layout is complete. The helper deadline does not include layout.
++Display storage is separately bounded to four bytes per retained raw byte plus
++one terminator, with at most that many row-offset entries.
++Scrolling and clipboard integration are not yet implemented.
++Enter still outputs the original label, never preview content.
+ Without
+ .BR \-P ,
+ the existing menu execution and appearance remain unchanged.
+--- a/dmenu.c
++++ b/dmenu.c
+@@ -76,10 +76,15 @@
+ 	int input, output, state;
+ 	int64_t due, deadline;
+ 	size_t sent, inputlen, used;
+-	char *buf;
++	char *buf, *display;
++	size_t *rows;
++	size_t displayused, rowcount, rawpos;
++	unsigned int prepwidth, rowwidth, column, prepwork;
++	int prepared, tabspaces;
+ } preview = { .input = -1, .output = -1 };
+ 
+ static void drawmenu(void);
++static void previewprepare_reset(void);
+ 
+ static int64_t
+ previewtime(void)
+@@ -132,15 +137,176 @@
+ 	preview.state = state;
+ 	preview.used = 0;
+ 	preview.buf[0] = '\0';
++	previewprepare_reset();
+ 	previewstop();
+ }
+ 
++static void
++previewprepare_reset(void)
++{
++	free(preview.display);
++	free(preview.rows);
++	preview.display = NULL;
++	preview.rows = NULL;
++	preview.displayused = preview.rowcount = 0;
++	preview.rawpos = 0;
++	preview.rowwidth = preview.column = preview.prepwork = 0;
++	preview.tabspaces = 0;
++	preview.prepared = 0;
++}
++
++static void
++previewprepare_start(unsigned int maxwidth)
++{
++	size_t displaycap, rowcap;
++
++	previewprepare_reset();
++	if (preview.used > (SIZE_MAX - 1) / 4)
++		return;
++	displaycap = preview.used * 4 + 1;
++	if (displaycap > SIZE_MAX / sizeof(*preview.rows))
++		return;
++	rowcap = displaycap;
++	preview.display = ecalloc(displaycap, 1);
++	preview.rows = ecalloc(rowcap, sizeof(*preview.rows));
++	preview.prepwidth = MAX(maxwidth, 1);
++	preview.rowcount = 1;
++	preview.prepared = 0;
++}
++
++static int
++previewprepare_pending(void)
++{
++	return preview.display && !preview.prepared;
++}
++
++static size_t
++previewutf8(size_t pos, unsigned long *cp)
++{
++	const unsigned char *s = (unsigned char *)preview.buf + pos;
++	size_t left = preview.used - pos, n, i;
++	unsigned long value, min;
++
++	if (s[0] < 0x80) {
++		*cp = s[0];
++		return 1;
++	}
++	if (s[0] >= 0xc2 && s[0] <= 0xdf)
++		n = 2, value = s[0] & 0x1f, min = 0x80;
++	else if (s[0] >= 0xe0 && s[0] <= 0xef)
++		n = 3, value = s[0] & 0x0f, min = 0x800;
++	else if (s[0] >= 0xf0 && s[0] <= 0xf4)
++		n = 4, value = s[0] & 0x07, min = 0x10000;
++	else
++		return 0;
++	if (left < n)
++		return 0;
++	for (i = 1; i < n; i++) {
++		if ((s[i] & 0xc0) != 0x80)
++			return 0;
++		value = (value << 6) | (s[i] & 0x3f);
++	}
++	if (value < min || value > 0x10ffff ||
++	    (value >= 0xd800 && value <= 0xdfff))
++		return 0;
++	*cp = value;
++	return n;
++}
++
++static void
++previewrowend(size_t end)
++{
++	if (preview.rowcount <= preview.used * 4 + 1)
++		preview.rows[preview.rowcount - 1] = end;
++	preview.rowcount++;
++	preview.rowwidth = 0;
++}
++
++static int
++previewprepare_step(void)
++{
++	static const char replacement[] = "\xef\xbf\xbd";
++	char glyph[5];
++	unsigned long cp;
++	size_t n;
++	unsigned int width, measured;
++
++	preview.prepwork = 0;
++	while (preview.prepwork < 256 &&
++	       (preview.rawpos < preview.used || preview.tabspaces)) {
++		if (preview.tabspaces) {
++			glyph[0] = ' ';
++			glyph[1] = '\0';
++			measured = drw_fontset_getwidth(drw, glyph);
++			width = MIN(measured, preview.prepwidth);
++			if (preview.rowwidth &&
++			    (measured > preview.prepwidth ||
++			     width > preview.prepwidth - MIN(preview.rowwidth, preview.prepwidth)))
++				previewrowend(preview.displayused);
++			preview.display[preview.displayused++] = ' ';
++			preview.rowwidth += width;
++			preview.column++;
++			preview.tabspaces--;
++			preview.prepwork++;
++			continue;
++		}
++		n = previewutf8(preview.rawpos, &cp);
++		if (!n) {
++			cp = 0xfffd;
++			n = 1;
++		}
++		preview.rawpos += n;
++		preview.prepwork++;
++		if (cp == '\n') {
++			previewrowend(preview.displayused);
++			preview.display[preview.displayused++] = '\0';
++			preview.column = preview.rowwidth = 0;
++			continue;
++		}
++		if (cp == '\t') {
++			/* Soft wraps do not reset the four-column tab stops. */
++			preview.tabspaces = 4 - preview.column % 4;
++			continue;
++		}
++		if (!cp || cp == '\r' || cp == 0x1b || cp < 0x20 ||
++		    (cp >= 0x7f && cp <= 0x9f))
++			cp = 0xfffd;
++		if (cp == 0xfffd) {
++			memcpy(glyph, replacement, sizeof(replacement));
++			n = sizeof(replacement) - 1;
++		} else {
++			memcpy(glyph, preview.buf + preview.rawpos - n, n);
++			glyph[n] = '\0';
++		}
++		measured = drw_fontset_getwidth(drw, glyph);
++		width = MIN(measured, preview.prepwidth);
++		if (preview.rowwidth &&
++		    (measured > preview.prepwidth ||
++		     width > preview.prepwidth - MIN(preview.rowwidth, preview.prepwidth)))
++			previewrowend(preview.displayused);
++		if (preview.displayused + n >= preview.used * 4 + 1) {
++			previewprepare_reset();
++			return 0;
++		}
++		memcpy(preview.display + preview.displayused, glyph, n);
++		preview.displayused += n;
++		preview.rowwidth += width;
++		preview.column++;
++	}
++	if (preview.rawpos == preview.used && !preview.tabspaces) {
++		preview.rows[preview.rowcount - 1] = preview.displayused;
++		preview.prepared = 1;
++		return 1;
++	}
++	return 0;
++}
+ static void
+ previewselect(void)
+ {
+ 	if (preview.item == sel)
+ 		return;
+ 	previewstop();
++	previewprepare_reset();
+ 	preview.item = sel;
+ 	preview.generation++;
+ 	preview.used = 0;
+@@ -317,16 +483,24 @@
+ previewwait(void)
+ {
+ 	struct pollfd fds[3];
+-	int state, timeout = -1, result;
++	int state, timeout = -1, result, prepared;
+ 	int64_t now;
+ 
+ 	state = preview.state;
++	prepared = preview.prepared;
+ 	previewstep();
+-	if (state != preview.state)
++	if ((preview.state == PreviewReady || preview.state == PreviewTruncated) &&
++	    preview.used && !preview.display)
++		previewprepare_start(mw - (itemw + 1) - lrpad / 2);
++	if (previewprepare_pending())
++		previewprepare_step();
++	if (state != preview.state || (!prepared && preview.prepared))
+ 		drawmenu();
+ 	now = previewtime();
+ 	if (preview.pid)
+ 		timeout = 20;
++	if (previewprepare_pending())
++		timeout = 0;
+ 	if (preview.deadline)
+ 		timeout = MIN(timeout, MAX(0, preview.deadline - now));
+ 	else if (!preview.pid && preview.due)
+@@ -345,7 +519,7 @@
+ 		}
+ 		return;
+ 	}
+-	state = preview.state;
++	prepared = preview.prepared;
+ 	if ((fds[1].revents | fds[2].revents) & POLLNVAL)
+ 		previewfail(PreviewUnavailable);
+ 	if (preview.input >= 0 && (fds[1].revents & (POLLOUT | POLLHUP | POLLERR)))
+@@ -353,7 +527,7 @@
+ 	if (preview.output >= 0 && (fds[2].revents & (POLLIN | POLLHUP | POLLERR)))
+ 		previewread();
+ 	previewstep();
+-	if (state != preview.state)
++	if (state != preview.state || (!prepared && preview.prepared))
+ 		drawmenu();
+ }
+ 
+@@ -405,6 +579,7 @@
+ 		XFlush(dpy);
+ 		previewstop();
+ 		free(preview.buf);
++		previewprepare_reset();
+ 	}
+ 	for (i = 0; i < SchemeLast; i++)
+ 		drw_scm_free(drw, scheme[i], 2);
+@@ -453,30 +628,34 @@
+ 	static const char *states[] = {
+ 		"", "Loading", "", "No preview", "Unavailable", "Timed out", "Truncated"
+ 	};
+-	int x = itemw + 1;
+-	unsigned int row, count;
+-	size_t offset = 0, length;
+-	char *end, saved;
++	int x = itemw + 1, state;
++	unsigned int row, count, y;
++	size_t start = 0, end;
++	char saved;
+ 
+ 	drw_setscheme(drw, scheme[SchemeNorm]);
+ 	drw_rect(drw, itemw, bh, 1, mh - bh, 1, 0);
+ 	if (!sel || preview.item != sel)
+ 		return;
+-	count = lines > 1 ? lines - 1 : (preview.state == PreviewReady);
+-	if (preview.state == PreviewReady || preview.state == PreviewTruncated)
+-		for (row = 0; row < count && offset < preview.used; row++) {
+-			end = memchr(preview.buf + offset, '\n', preview.used - offset);
+-			length = end ? (size_t)(end - preview.buf) : preview.used;
+-			saved = preview.buf[length];
+-			preview.buf[length] = '\0';
+-			drw_text(drw, x, (row + 1) * bh, mw - x, bh,
+-			         lrpad / 2, preview.buf + offset, 0);
+-			preview.buf[length] = saved;
+-			offset = length + 1;
+-		}
+-	if (preview.state != PreviewReady)
+-		drw_text(drw, x, lines * bh, mw - x, bh, lrpad / 2,
+-		         states[preview.state], 0);
++	state = preview.state;
++	if ((state == PreviewReady || state == PreviewTruncated) && !preview.prepared)
++		state = PreviewLoading;
++	count = lines > 1 ? lines - 1 : (state == PreviewReady);
++	if (preview.prepared && (preview.state == PreviewReady ||
++	                         preview.state == PreviewTruncated))
++		for (row = 0; row < count && row < preview.rowcount; row++) {
++			end = preview.rows[row];
++			saved = preview.display[end];
++			preview.display[end] = '\0';
++			y = (row + 1) * bh;
++			drw_text_clip(drw, x, y, mw - x, bh, lrpad / 2,
++			              preview.display + start, 0);
++			preview.display[end] = saved;
++			start = end + (end < preview.displayused && saved == '\0');
++		}
++	if (state != PreviewReady)
++		drw_text_clip(drw, x, lines * bh, mw - x, bh, lrpad / 2,
++		              states[state], 0);
+ }
+ 
+ static void
+--- a/drw.c
++++ b/drw.c
+@@ -1,5 +1,5 @@
+ /* See LICENSE file for copyright and license details. */
+-#include <stdio.h>
++#include <limits.h>
+ #include <stdlib.h>
+ #include <string.h>
+ #include <X11/Xlib.h>
+@@ -244,8 +244,9 @@
+ 		XDrawRectangle(drw->dpy, drw->drawable, drw->gc, x, y, w - 1, h - 1);
+ }
+ 
+-int
+-drw_text(Drw *drw, int x, int y, unsigned int w, unsigned int h, unsigned int lpad, const char *text, int invert)
++static int
++drw_text_impl(Drw *drw, int x, int y, unsigned int w, unsigned int h,
++              unsigned int lpad, const char *text, int invert, int clip)
+ {
+ 	int ty, ellipsis_x = 0;
+ 	unsigned int tmpw, ew, ellipsis_w = 0, ellipsis_len, hash, h0, h1;
+@@ -276,6 +277,10 @@
+ 		d = XftDrawCreate(drw->dpy, drw->drawable,
+ 		                  DefaultVisual(drw->dpy, drw->screen),
+ 		                  DefaultColormap(drw->dpy, drw->screen));
++		if (clip) {
++			XRectangle rect = { x, y, MIN(w, USHRT_MAX), MIN(h, USHRT_MAX) };
++			XftDrawSetClipRectangles(d, 0, 0, &rect, 1);
++		}
+ 		x += lpad;
+ 		w -= lpad;
+ 	}
+@@ -307,7 +312,13 @@
+ 						/* called from drw_fontset_getwidth_clamp():
+ 						 * it wants the width AFTER the overflow
+ 						 */
+-						if (!render)
++						if (clip && !utf8strlen) {
++							/* Consume an overwide glyph; the pane clip bounds its ink. */
++							usedfont = curfont;
++							utf8strlen = utf8charlen;
++							ew = w;
++							text += utf8charlen;
++						} else if (!render)
+ 							x += tmpw;
+ 						else
+ 							utf8strlen = ellipsis_len;
+@@ -330,21 +341,25 @@
+ 
+ 		if (utf8strlen) {
+ 			if (render) {
+-				ty = y + (h - usedfont->h) / 2 + usedfont->xfont->ascent;
++				if (clip)
++					ty = y + ((int)h - (int)usedfont->h) / 2 + usedfont->xfont->ascent;
++				else
++					ty = y + (h - usedfont->h) / 2 + usedfont->xfont->ascent;
+ 				XftDrawStringUtf8(d, &drw->scheme[invert ? ColBg : ColFg],
+ 				                  usedfont->xfont, x, ty, (XftChar8 *)utf8str, utf8strlen);
+ 			}
+ 			x += ew;
+ 			w -= ew;
+ 		}
++
+ 		if (utf8err && (!render || invalid_width < w)) {
+ 			if (render)
+-				drw_text(drw, x, y, w, h, 0, invalid, invert);
++				drw_text_impl(drw, x, y, w, h, 0, invalid, invert, clip);
+ 			x += invalid_width;
+ 			w -= invalid_width;
+ 		}
+ 		if (render && overflow)
+-			drw_text(drw, ellipsis_x, y, ellipsis_w, h, 0, "...", invert);
++			drw_text_impl(drw, ellipsis_x, y, ellipsis_w, h, 0, "...", invert, clip);
+ 
+ 		if (!*text || overflow) {
+ 			break;
+@@ -399,10 +414,23 @@
+ 			}
+ 		}
+ 	}
++
+ 	if (d)
+ 		XftDrawDestroy(d);
+ 
+ 	return x + (render ? w : 0);
++}
++
++int
++drw_text(Drw *drw, int x, int y, unsigned int w, unsigned int h, unsigned int lpad, const char *text, int invert)
++{
++	return drw_text_impl(drw, x, y, w, h, lpad, text, invert, 0);
++}
++
++int
++drw_text_clip(Drw *drw, int x, int y, unsigned int w, unsigned int h, unsigned int lpad, const char *text, int invert)
++{
++	return drw_text_impl(drw, x, y, w, h, lpad, text, invert, 1);
+ }
+ 
+ void
+--- a/drw.h
++++ b/drw.h
+@@ -55,6 +55,7 @@
+ /* Drawing functions */
+ void drw_rect(Drw *drw, int x, int y, unsigned int w, unsigned int h, int filled, int invert);
+ int drw_text(Drw *drw, int x, int y, unsigned int w, unsigned int h, unsigned int lpad, const char *text, int invert);
++int drw_text_clip(Drw *drw, int x, int y, unsigned int w, unsigned int h, unsigned int lpad, const char *text, int invert);
+ 
+ /* Map functions */
+ void drw_map(Drw *drw, Window win, int x, int y, unsigned int w, unsigned int h);
+--- /dev/null
++++ b/tests/preview-text.c
+@@ -0,0 +1,368 @@
++#include <errno.h>
++#define main dmenu_application_main
++#define drw_fontset_getwidth preview_test_width
++#include "../dmenu.c"
++#undef drw_fontset_getwidth
++#undef main
++
++/* The include seam renames the public declaration along with its callers. */
++unsigned int drw_fontset_getwidth(Drw *, const char *);
++
++#define REPLACEMENT "\xef\xbf\xbd"
++static Drw testdrw;
++static int slow_metrics;
++static char *testraw;
++
++unsigned int
++preview_test_width(Drw *context, const char *text)
++{
++	struct timespec delay = { 0, slow_metrics == 2 ? 100000 : 350000 };
++	const unsigned char *s = (const unsigned char *)text;
++
++	if (slow_metrics)
++		nanosleep(&delay, NULL);
++	if (context != &testdrw)
++		return drw_fontset_getwidth(context, text);
++	if (!*s)
++		return 0;
++	return s[0] == 'W' ? 4 : s[0] == 'z' ? 0 : (s[0] < 0x80 ? 1 : 2);
++}
++
++
++static void
++require(int condition, const char *message)
++{
++	if (!condition) {
++		fprintf(stderr, "FAIL: %s\n", message);
++		exit(1);
++	}
++}
++
++static void
++begin(const unsigned char *bytes, size_t length, unsigned int width)
++{
++	require(length <= PREVIEWMAX, "test input exceeds retained raw cap");
++	free(testraw);
++	testraw = malloc(length ? length : 1);
++	require(testraw != NULL, "cannot allocate exact-length raw test buffer");
++	if (length)
++		memcpy(testraw, bytes, length);
++	preview.buf = testraw;
++	preview.used = length;
++	preview.state = PreviewReady;
++	preview.deadline = 1;
++	previewprepare_start(width);
++}
++
++static void
++finish(void)
++{
++	while (previewprepare_pending()) {
++		previewprepare_step();
++		require(preview.prepwork > 0 || !previewprepare_pending(),
++		        "pending preparation made no bounded progress");
++		require(preview.prepwork <= 256, "preparation exceeded per-turn codepoint budget");
++	}
++	require(preview.prepared, "preparation did not publish a completed layout");
++}
++
++static void
++check_rows(const size_t *ends, size_t count)
++{
++	size_t i;
++
++	require(preview.rowcount == count, "row count differs");
++	for (i = 0; i < count; i++) {
++		require(preview.rows[i] == ends[i], "row end offset differs");
++		require(preview.rows[i] <= preview.displayused, "row end exceeds display bytes");
++		if (i)
++			require(preview.rows[i] >= preview.rows[i - 1], "row ends are not ordered");
++	}
++}
++static void
++check_text(const unsigned char *raw, size_t rawlen, const char *expected,
++           size_t expectedlen, size_t rows, unsigned int width)
++{
++	begin(raw, rawlen, width);
++	finish();
++	require(preview.displayused == expectedlen, "sanitized display length differs");
++	require(!memcmp(preview.display, expected, expectedlen), "sanitized bytes differ");
++	require(preview.rowcount == rows, "wrapped row count differs");
++}
++static void
++check_all_bytes(void)
++{
++	unsigned char raw[256], expected[1025];
++	size_t ends[257], used = 0, rows = 1, column = 0, i, spaces;
++
++	for (i = 0; i < sizeof(raw); i++)
++		raw[i] = (unsigned char)i;
++	for (i = 0; i < sizeof(raw); i++) {
++		if (raw[i] == '\n') {
++			ends[rows - 1] = used;
++			expected[used++] = '\0';
++			rows++;
++			column = 0;
++		} else if (raw[i] == '\t') {
++			spaces = 4 - column % 4;
++			while (spaces--) {
++				expected[used++] = ' ';
++				column++;
++			}
++		} else if (!raw[i] || raw[i] == '\r' || raw[i] == 0x1b ||
++		           raw[i] < 0x20 || raw[i] >= 0x7f) {
++			memcpy(expected + used, REPLACEMENT, 3);
++			used += 3;
++			column++;
++		} else {
++			expected[used++] = raw[i];
++			column++;
++		}
++	}
++	ends[rows - 1] = used;
++	check_text(raw, sizeof(raw), (const char *)expected, used, rows, 2000);
++	check_rows(ends, rows);
++}
++
++static int
++test_helper(void)
++{
++	unsigned char buf[4098];
++	size_t sent;
++	ssize_t n;
++
++	memset(buf, 'x', 4095);
++	memcpy(buf + 4095, "\xe4\xb8\xad", 3);
++	sent = 0;
++	while (sent < 4096) {
++		n = write(STDOUT_FILENO, buf + sent, 4096 - sent);
++		if (n > 0)
++			sent += (size_t)n;
++		else if (n != -1 || errno != EINTR)
++			return 1;
++	}
++	sent = 4096;
++	while (sent < sizeof(buf)) {
++		n = write(STDOUT_FILENO, buf + sent, sizeof(buf) - sent);
++		if (n > 0)
++			sent += (size_t)n;
++		else if (n != -1 || errno != EINTR)
++			return 1;
++	}
++	return 0;
++}
++
++static void
++check_helper_deadline(void)
++{
++	char path[PATH_MAX], label[] = "slowprep";
++	struct item item = {0};
++	struct pollfd fds[2];
++	const char *helper = getenv("PREVIEW_TEXT_HELPER");
++	int64_t launched;
++	unsigned int count;
++	int saw_split = 0;
++
++	require(helper != NULL && realpath(helper, path) != NULL,
++	        "PREVIEW_TEXT_HELPER must name the normal helper executable");
++	require(setenv("PREVIEW_TEXT_HELPER_CHILD", "1", 1) == 0,
++	        "cannot configure synthetic helper child");
++	previewcmd = path;
++	free(preview.buf);
++	testraw = NULL;
++	preview.buf = malloc(PREVIEWMAX + 1);
++	require(preview.buf != NULL, "cannot allocate production collection buffer");
++	preview.used = 0;
++	item.text = label;
++	preview.item = &item;
++	preview.generation = 1;
++	preview.state = PreviewLoading;
++	preview.due = 0;
++	previewstart();
++	launched = preview.deadline - 1000;
++	require(preview.pid > 0 && preview.deadline > 0, "production helper did not start");
++	while (preview.deadline) {
++		count = 0;
++		if (preview.input >= 0)
++			fds[count++] = (struct pollfd){ preview.input, POLLOUT, 0 };
++		if (preview.output >= 0)
++			fds[count++] = (struct pollfd){ preview.output, POLLIN, 0 };
++		if (poll(fds, count, 10) < 0 && errno != EINTR)
++			require(0, "poll failed during native helper collection");
++		if (preview.input >= 0)
++			previewwrite();
++		if (preview.output >= 0) {
++			previewread();
++			if (preview.used == 4096 && (unsigned char)preview.buf[4095] == 0xe4)
++				saw_split = 1;
++		}
++		previewstep();
++		require(preview.state != PreviewTimeout && preview.state != PreviewUnavailable,
++		        "production helper collection failed");
++	}
++	require(preview.state == PreviewReady && preview.used == 4098 && saw_split,
++	        "production helper did not collect valid UTF-8 split across 4096-byte reads");
++	slow_metrics = 1;
++	previewprepare_start(10000);
++	while (previewprepare_pending()) {
++		previewstep();
++		previewprepare_step();
++		require(preview.prepwork > 0 && preview.prepwork <= 256,
++		        "delayed production prep step violated its work bound");
++	}
++	require(preview.displayused == 4098 &&
++	        !memcmp(preview.display + 4095, "\xe4\xb8\xad", 3),
++	        "split-read UTF-8 codepoint did not survive preparation");
++	slow_metrics = 0;
++	require(previewtime() - launched > 1000 && preview.state == PreviewReady,
++	        "completed helper timed out during preparation beyond its deadline");
++	printf("PASS completed helper: valid UTF-8 split at byte 4096, layout ready at %lld ms, budget <=256\n",
++	       (long long)(previewtime() - launched));
++	previewprepare_reset();
++	free(preview.buf);
++	preview.buf = NULL;
++	preview.item = NULL;
++	previewcmd = NULL;
++}
++
++int
++main(int argc, char **argv)
++{
++	if (getenv("PREVIEW_TEXT_HELPER_CHILD"))
++		return test_helper();
++	if (argc > 1 && !strcmp(argv[1], "--menu")) {
++		slow_metrics = 2;
++		memmove(argv + 1, argv + 2, (size_t)(argc - 1) * sizeof(*argv));
++		return dmenu_application_main(argc - 1, argv);
++	}
++	static const unsigned char multiline[] = "A\n\nB\n";
++	static const unsigned char unicode[] = "caf\xc3\xa9 \xd0\x9a\xd0\xb8\xd1\x80\xd0\xb8\xd0\xbb\xd0\xbb\xd0\xb8\xd1\x86\xd0\xb0 \xce\x91\xce\xbb\xce\xbb\xce\xb7\xce\xbd\xce\xb9\xce\xba\xce\xac \xe4\xb8\xad\xf0\x9f\x98\x80 e\xcc\x81";
++	static const unsigned char malformed[] = {
++		0xff, ' ', 0xc3, 0x28, ' ', 0xe2, 0x82, ' ',
++		0xed, 0xa0, 0x80, ' ', 0xc0, 0xaf, ' ', 0xf4, 0x90, 0x80, 0x80
++	};
++	static const unsigned char mixed[] = "abWWWc";
++	static const unsigned char tab_after_wrap[] = "abc\t";
++	static const unsigned char controls[] = { 'a', '\t', 'b', '\0', '\r', 0x1b, 1, 0x7f, 0xc2, 0x80, '\n' };
++	static const unsigned char crlf[] = { 'x', '\r', '\n' };
++	static const unsigned char ansi[] = "\x1b[31mRED\x1b[0m";
++	static const unsigned char one_glyph[] = { 'W' };
++	static unsigned char zero_width[1024];
++	static unsigned char tabs[400], capped[PREVIEWMAX];
++	static unsigned char longline[1024];
++	static const char malformed_expected[] =
++		"\xef\xbf\xbd \xef\xbf\xbd( "
++		"\xef\xbf\xbd\xef\xbf\xbd "
++		"\xef\xbf\xbd\xef\xbf\xbd\xef\xbf\xbd "
++		"\xef\xbf\xbd\xef\xbf\xbd "
++		"\xef\xbf\xbd\xef\xbf\xbd\xef\xbf\xbd\xef\xbf\xbd";
++	size_t i;
++
++	drw = &testdrw;
++	check_text(multiline, sizeof(multiline) - 1, "A\0\0B\0", 5, 4, 80);
++	{
++		static const size_t ends[] = { 1, 2, 4, 5 };
++		check_rows(ends, sizeof(ends) / sizeof(ends[0]));
++	}
++	check_text(unicode, sizeof(unicode) - 1, (const char *)unicode,
++	           sizeof(unicode) - 1, 1, 2000);
++	check_text(malformed, sizeof(malformed), malformed_expected,
++	           sizeof(malformed_expected) - 1, 1, 2000);
++	check_text(controls, sizeof(controls),
++	           "a   b" REPLACEMENT REPLACEMENT REPLACEMENT REPLACEMENT REPLACEMENT REPLACEMENT "\0",
++	           24, 2, 2000);
++	check_text(ansi, sizeof(ansi) - 1,
++	           REPLACEMENT "[31mRED" REPLACEMENT "[0m", 16, 1, 2000);
++	check_all_bytes();
++	check_text(crlf, sizeof(crlf), "x" REPLACEMENT "\0", 5, 2, 2000);
++	check_text(mixed, sizeof(mixed) - 1, (const char *)mixed,
++	           sizeof(mixed) - 1, 4, 5);
++	{
++		static const size_t ends[] = { 2, 3, 4, 6 };
++		check_rows(ends, sizeof(ends) / sizeof(ends[0]));
++	}
++	check_text(tab_after_wrap, sizeof(tab_after_wrap) - 1, "abc ",
++	           4, 2, 2);
++	{
++		static const size_t ends[] = { 2, 4 };
++		check_rows(ends, sizeof(ends) / sizeof(ends[0]));
++	}
++	begin(unicode, sizeof(unicode) - 1, 3);
++	finish();
++	require(preview.rowcount > 1, "narrow Unicode width did not wrap");
++	memset(zero_width, 'z', sizeof(zero_width));
++	begin(zero_width, sizeof(zero_width), 1);
++	finish();
++	require(preview.displayused == sizeof(zero_width) && preview.rowcount == 1,
++	        "zero-width glyphs did not make bounded preparation progress");
++	check_text((const unsigned char *)"", 0, "", 0, 1, 0);
++	check_text(one_glyph, sizeof(one_glyph), "W", 1, 1, 0);
++
++	/* Expanded spaces count toward the per-turn budget and retain tab stops across wraps. */
++	memset(tabs, '\t', sizeof(tabs));
++	begin(tabs, sizeof(tabs), 2000);
++	for (i = 0; previewprepare_pending(); i++) {
++		previewprepare_step();
++		require(preview.prepwork <= 256, "tab expansion exceeded per-turn budget");
++		require(i < 10, "expanded tabs did not finish in bounded turns");
++	}
++	require(preview.displayused == sizeof(tabs) * 4 && preview.rowcount == 1,
++	        "tab expansion length or row count differs");
++	for (i = 0; i < preview.displayused; i++)
++		require(preview.display[i] == ' ', "tab expansion produced a non-space byte");
++
++	/* A UTF-8 codepoint split at the exact byte cap is replaced bytewise. */
++	memset(capped, 'x', sizeof(capped));
++	capped[PREVIEWMAX - 3] = 0xf0;
++	capped[PREVIEWMAX - 2] = 0x9f;
++	capped[PREVIEWMAX - 1] = 0x98;
++	begin(capped, sizeof(capped), 2000);
++	finish();
++	require(preview.displayused == PREVIEWMAX + 6,
++	        "cap-split sequence did not produce three replacement codepoints");
++
++	/* Worst-case tab expansion and trailing LF rows use the full bounded allocations. */
++	memset(capped, '\t', sizeof(capped));
++	begin(capped, sizeof(capped), 1);
++	finish();
++	require(preview.displayused == PREVIEWMAX * 4 &&
++	        preview.rowcount == PREVIEWMAX * 4 &&
++	        preview.rows[preview.rowcount - 1] == preview.displayused &&
++	        preview.display[preview.displayused] == '\0',
++	        "maximum tab expansion exceeded display/row bounds");
++	memset(capped, '\n', sizeof(capped));
++	begin(capped, sizeof(capped), 1);
++	finish();
++	require(preview.displayused == PREVIEWMAX && preview.rowcount == PREVIEWMAX + 1 &&
++	        preview.rows[PREVIEWMAX] == PREVIEWMAX,
++	        "maximum LF input lost its trailing empty row");
++
++	memset(longline, 'W', sizeof(longline));
++	begin(longline, sizeof(longline), 5);
++	finish();
++	require(preview.rowcount == sizeof(longline), "oversized glyph wrapping failed to make progress");
++	for (i = 0; i < preview.rowcount; i++)
++		require(preview.rows[i] == i + 1, "oversized glyph row offsets differ");
++
++	begin(tabs, sizeof(tabs), 2000);
++	require(previewprepare_pending(), "large preparation was not pending");
++	previewprepare_reset();
++	require(!previewprepare_pending() && !preview.display && !preview.rows,
++	        "selection cancellation retained pending layout");
++
++	/* Completed collection clears its deadline before bounded layout work begins. */
++	begin(tabs, sizeof(tabs), 2000);
++	preview.deadline = 0;
++	previewstep();
++	require(preview.state == PreviewReady && previewprepare_pending() &&
++	        preview.prepwork <= 256,
++	        "expired collection deadline incorrectly timed out pending layout");
++	finish();
++	require(preview.state == PreviewReady, "layout completion changed successful result state");
++	previewprepare_reset();
++	check_helper_deadline();
++	previewprepare_reset();
++	puts("PASS preview text preparation and late-layout lifecycle");
++	free(testraw);
++	return 0;
++}
+--- /dev/null
++++ b/tests/preview-text.py
+@@ -0,0 +1,331 @@
++#!/usr/bin/env python3
++"""Check rendered text previews only on an explicitly owned X display."""
++import argparse
++import ctypes
++import os
++import re
++import shutil
++import subprocess
++import tempfile
++import time
++from pathlib import Path
++
++
++def need(ok, message):
++    if not ok:
++        raise RuntimeError(message)
++
++
++def run(args):
++    return subprocess.run(args, check=True, text=True, capture_output=True)
++
++
++HELPER = r'''#!{python}
++import os, sys, time
++label = sys.stdin.buffer.readline().strip()
++with open(os.environ["PREVIEW_LOG"], "a", encoding="ascii") as log:
++    log.write(label.decode("ascii") + "\n")
++if label == b"unicode":
++    data = ("ASCII line\n\nLatin café; Кириллица; Ελληνικά; 中文; 😀; e\u0301\nend\n").encode()
++    if os.environ.get("PREVIEW_ALT"):
++        data = b"alternate rendered contents\n"
++elif label == b"malformed":
++    data = b"bad:\xff\ncontrols:\x00\x1b\r\x01\x7f\xc2\x80\nCRLF:\r\nnext\nlong:" + b"W" * 500
++elif label == b"large":
++    data = b"\t" * 16000
++else:
++    data = b"LATEST PREVIEW\n"
++if os.environ.get("PREVIEW_LOADING_REF"):
++    data = b"Loading\n"
++sys.stdout.buffer.write(data)
++sys.stdout.buffer.flush()
++with open(os.environ["PREVIEW_LOG"], "a", encoding="ascii") as log:
++    log.write("done:" + label.decode("ascii") + "\n")
++'''
++
++
++class Menu:
++    def __init__(self, binary, helper, labels, env, options, output, lines=6, launch_prefix=()):
++        self.out = tempfile.TemporaryFile()
++        self.err = tempfile.TemporaryFile()
++        self.data = tempfile.TemporaryFile()
++        self.data.write(labels)
++        self.data.seek(0)
++        self.proc = subprocess.Popen([binary, *launch_prefix, "-P", str(helper), "-l", str(lines), *options],
++                                     stdin=self.data, stdout=self.out, stderr=self.err, env=env,
++                                     start_new_session=True)
++        self.output = output
++        self.window = None
++        deadline = time.monotonic() + 5
++        while time.monotonic() < deadline:
++            found = subprocess.run(["xdotool", "search", "--onlyvisible", "--class", "dmenu"],
++                                   text=True, capture_output=True)
++            if found.returncode == 0 and found.stdout.split():
++                self.window = found.stdout.split()[-1]
++                return
++            if self.proc.poll() is not None:
++                error = self.stderr()
++                self.close()
++                raise RuntimeError("menu exited before mapping: " + error)
++            time.sleep(.03)
++        self.close()
++        raise RuntimeError("menu did not map")
++
++    def key(self, *keys):
++        started = time.monotonic()
++        run(["xdotool", "key", "--clearmodifiers", *keys])
++        time.sleep(.08)
++        return time.monotonic() - started
++
++    def shot(self, path):
++        run(["import", "-window", self.window, str(path)])
++
++    def geometry(self):
++        text = run(["xwininfo", "-id", self.window]).stdout
++        return {key: int(re.search(rf"^\s*{re.escape(key)}:\s+(\d+)", text, re.M)[1])
++                for key in ("Width", "Height")}
++
++    def stderr(self):
++        self.err.seek(0)
++        return self.err.read().decode(errors="replace")
++
++    def close(self):
++        forced = self.proc.poll() is None
++        if forced:
++            self.proc.kill()
++            self.proc.wait(timeout=2)
++        error = self.stderr()
++        (self.output / f"menu-{self.proc.pid}.stderr").write_text(error, encoding="utf-8")
++        for stream in (self.out, self.err, self.data):
++            stream.close()
++        need(not re.search(r"AddressSanitizer|LeakSanitizer|UndefinedBehaviorSanitizer|runtime error:", error),
++             f"sanitizer diagnostic from menu {self.proc.pid}: {error}")
++
++
++def signature(path, crop):
++    x, y, width, height = crop
++    value = run(["convert", str(path), "-crop", f"{width}x{height}+{x}+{y}", "+repage",
++                 "-format", "%[fx:standard_deviation] %#", "info:"]).stdout
++    deviation, digest = value.split()
++    return float(deviation), digest
++
++
++def wait_image(menu, path, crop, timeout=4, expected=None):
++    deadline = time.monotonic() + timeout
++    while time.monotonic() < deadline:
++        menu.shot(path)
++        deviation, digest = signature(path, crop)
++        if deviation > 0 and (expected is None or digest == expected):
++            return
++        time.sleep(.04)
++    raise RuntimeError(f"preview pixels did not appear before timeout: {path}")
++
++
++def exercise_pending_layout(probe, helper, output, log, loading_digest, latest_digest, escape=False):
++    env = {**os.environ, "LC_ALL": "C.UTF-8", "PREVIEW_LOG": str(log)}
++    menu = Menu(str(probe), helper, b"large\nlatest\n", env,
++                ["-F", "-fn", "monospace:size=12"], output,
++                launch_prefix=("--menu",))
++    try:
++        geometry = menu.geometry()
++        row = geometry["Height"] // 7
++        pane = (geometry["Width"] * 2 // 5 + 2, row,
++                geometry["Width"] * 3 // 5 - 3, 5 * row)
++        wait_helper_done(log, "large")
++        deadline = time.monotonic() + 2
++        children = Path(f"/proc/{menu.proc.pid}/task/{menu.proc.pid}/children")
++        while children.read_text().strip() and time.monotonic() < deadline:
++            time.sleep(.01)
++        need(not children.read_text().strip(), "completed helper was not reaped during preparation")
++        loading = output / ("pending-escape.png" if escape else "pending-cancel.png")
++        menu.shot(loading)
++        footer = (pane[0], 6 * row, pane[2], row)
++        need(signature(loading, pane)[0] == 0 and
++             signature(loading, footer)[1] == loading_digest,
++             "completed helper did not remain Loading during deliberately slow preparation")
++        if escape:
++            started = time.monotonic()
++            run(["xdotool", "key", "--clearmodifiers", "Escape"])
++            status = menu.proc.wait(timeout=2)
++            elapsed = time.monotonic() - started
++            need(status == 1 and elapsed < .35,
++                 f"Escape during pending preparation was slow: status={status}, {elapsed:.3f}s")
++        else:
++            started = time.monotonic()
++            run(["xdotool", "key", "--clearmodifiers", "Down"])
++            latest = output / "latest-after-pending-cancel.png"
++            wait_image(menu, latest, pane)
++            elapsed = time.monotonic() - started
++            need(elapsed < .35 and signature(latest, pane)[1] == latest_digest,
++                 f"selection stalled or published stale text during pending preparation: {elapsed:.3f}s")
++            menu.key("Escape")
++            need(menu.proc.wait(timeout=2) == 1, "Escape after pending-layout cancellation failed")
++        print(f"PASS pending-layout {'Escape' if escape else 'selection'}: {elapsed:.3f}s including driver observation")
++    finally:
++        menu.close()
++
++
++def wait_helper_done(log, label, timeout=5):
++    target = f"done:{label}"
++    deadline = time.monotonic() + timeout
++    while time.monotonic() < deadline:
++        if log.exists() and target in log.read_text(encoding="ascii").splitlines():
++            return
++        time.sleep(.02)
++    raise RuntimeError(f"synthetic helper did not finish {label!r}")
++
++
++def parent_window(width, height):
++    xlib = ctypes.CDLL("libX11.so.6")
++    xlib.XOpenDisplay.restype = ctypes.c_void_p
++    display = xlib.XOpenDisplay(None)
++    need(display, "cannot open isolated DISPLAY for embedded narrow-font check")
++    xlib.XDefaultRootWindow.argtypes = [ctypes.c_void_p]
++    xlib.XDefaultRootWindow.restype = ctypes.c_ulong
++    xlib.XCreateSimpleWindow.argtypes = [ctypes.c_void_p, ctypes.c_ulong, ctypes.c_int,
++                                         ctypes.c_int, ctypes.c_uint, ctypes.c_uint,
++                                         ctypes.c_uint, ctypes.c_ulong, ctypes.c_ulong]
++    xlib.XCreateSimpleWindow.restype = ctypes.c_ulong
++    xlib.XMapWindow.argtypes = [ctypes.c_void_p, ctypes.c_ulong]
++    xlib.XSync.argtypes = [ctypes.c_void_p, ctypes.c_int]
++    root = xlib.XDefaultRootWindow(display)
++    parent = xlib.XCreateSimpleWindow(display, root, 5, 5, width, height, 0, 0, 0)
++    xlib.XMapWindow(display, parent)
++    xlib.XSync(display, 0)
++    return xlib, display, parent
++
++
++def main():
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument("--binary", required=True, type=Path)
++    parser.add_argument("--output", required=True, type=Path)
++    parser.add_argument("--layout-probe", required=True, type=Path,
++                        help="native preview-text probe built with --menu's slow Xft metrics")
++    parser.add_argument("--isolated-display", action="store_true",
++                        help="confirm DISPLAY names a disposable X server owned by this test")
++    args = parser.parse_args()
++    need(args.isolated_display and os.environ.get("DISPLAY"),
++         "requires --isolated-display and DISPLAY set to an owned disposable X server")
++    need(args.binary.is_absolute() and args.binary.is_file() and os.access(args.binary, os.X_OK),
++         "--binary must be an executable absolute path")
++    need(args.layout_probe.is_absolute() and args.layout_probe.is_file() and
++         os.access(args.layout_probe, os.X_OK), "--layout-probe must be executable and absolute")
++    for command in ("xdotool", "xwininfo", "import", "convert"):
++        need(shutil.which(command), f"missing required tool: {command}")
++    args.output.mkdir(parents=True, exist_ok=True)
++    need(not any(args.output.iterdir()), "--output must be empty")
++    args.output = args.output.resolve()
++    helper = args.output / "preview-text-helper.py"
++    helper.write_text(HELPER.format(python=os.sys.executable), encoding="utf-8")
++    helper.chmod(0o700)
++    log = args.output / "helper.log"
++    env = {**os.environ, "LC_ALL": "C.UTF-8", "PREVIEW_LOG": str(log)}
++    labels = b"unicode\nmalformed\nlarge\nlatest\n"
++    prefix = ["-F", "-fn", "monospace:size=12"]
++    menu = Menu(str(args.binary), helper, labels, env, prefix, args.output)
++    try:
++        geometry = menu.geometry()
++        row = geometry["Height"] // 7
++        need(row > 0 and geometry["Height"] == 7 * row, "unexpected menu/footer row geometry")
++        pane = (geometry["Width"] * 2 // 5 + 2, row,
++                geometry["Width"] * 3 // 5 - 3, 5 * row)
++        unicode = args.output / "unicode-multiline.png"
++        wait_image(menu, unicode, pane)
++        menu.key("Down")
++        malformed = args.output / "malformed-crlf-wrapped.png"
++        wait_image(menu, malformed, pane)
++        menu.key("Down", "Down")
++        latest = args.output / "latest-after-churn.png"
++        wait_image(menu, latest, pane)
++        menu.key("Escape")
++        status = menu.proc.wait(timeout=2)
++        need(status == 1, f"Escape after selection churn returned {status}")
++    finally:
++        menu.close()
++    reference = Menu(str(args.binary), helper, labels,
++                     {**env, "PREVIEW_LOADING_REF": "1"}, prefix, args.output)
++    try:
++        reference_image = args.output / "loading-reference.png"
++        wait_image(reference, reference_image, pane)
++        loading_digest = signature(reference_image, (pane[0], row, pane[2], row))[1]
++    finally:
++        reference.close()
++    latest_digest = signature(latest, pane)[1]
++    exercise_pending_layout(args.layout_probe, helper, args.output,
++                            args.output / "pending-cancel.log", loading_digest, latest_digest)
++    exercise_pending_layout(args.layout_probe, helper, args.output,
++                            args.output / "pending-escape.log", loading_digest, latest_digest, escape=True)
++
++    # Ready-state footer stays identical; only pixels inside the right preview body may change.
++    alternate = Menu(str(args.binary), helper, labels,
++                     {**env, "PREVIEW_ALT": "1"}, prefix, args.output)
++    try:
++        alternate_image = args.output / "alternate-text.png"
++        wait_image(alternate, alternate_image, pane)
++        protected = ((0, 0, geometry["Width"], row),
++                     (0, row, geometry["Width"] * 2 // 5, 5 * row),
++                     (0, 6 * row, geometry["Width"], row))
++        for region in protected:
++            need(signature(unicode, region)[1] == signature(alternate_image, region)[1],
++                 "preview ink escaped into input, left pane, or footer")
++    finally:
++        alternate.close()
++
++    # Real Xft clipping and wrapping with a narrow embedded pane and oversized font.
++    xlib, display, parent = parent_window(320, 700)
++    try:
++        narrow = Menu(str(args.binary), helper, labels, env,
++                      ["-F", "-fn", "monospace:size=24", "-w", hex(parent)], args.output)
++        try:
++            narrow_geometry = narrow.geometry()
++            need(narrow_geometry["Width"] == 320 and narrow_geometry["Height"] <= 700,
++                 f"narrow embedded geometry escaped parent bounds: {narrow_geometry}")
++            narrow_row = narrow_geometry["Height"] // 7
++            narrow_pane = (narrow_geometry["Width"] * 2 // 5 + 2, narrow_row,
++                           narrow_geometry["Width"] * 3 // 5 - 3, 5 * narrow_row)
++            shot = args.output / "narrow-oversized-font.png"
++            wait_image(narrow, shot, narrow_pane)
++            need(signature(shot, narrow_pane)[0] > 0,
++                 "narrow oversized-font preview is blank")
++        finally:
++            narrow.close()
++        narrow_alt = Menu(str(args.binary), helper, labels,
++                          {**env, "PREVIEW_ALT": "1"},
++                          ["-F", "-fn", "monospace:size=24", "-w", hex(parent)], args.output)
++        try:
++            alt_shot = args.output / "narrow-oversized-font-alt.png"
++            wait_image(narrow_alt, alt_shot, narrow_pane)
++            protected = ((0, 0, 320, narrow_row),
++                         (0, narrow_row, 128, 5 * narrow_row),
++                         (0, 6 * narrow_row, 320, narrow_row))
++            for region in protected:
++                need(signature(shot, region)[1] == signature(alt_shot, region)[1],
++                     "oversized font ink escaped preview pane into protected pixels")
++        finally:
++            narrow_alt.close()
++    finally:
++        xlib.XDestroyWindow.argtypes = [ctypes.c_void_p, ctypes.c_ulong]
++        xlib.XDestroyWindow(display, parent)
++        xlib.XCloseDisplay.argtypes = [ctypes.c_void_p]
++        xlib.XCloseDisplay(display)
++
++    # The initial Ready preview has one body row for -l 1.
++    single = Menu(str(args.binary), helper, b"unicode\n", env,
++                  ["-F", "-fn", "monospace:size=12"], args.output, lines=1)
++    try:
++        one_geometry = single.geometry()
++        one_row = one_geometry["Height"] // 2
++        one_pane = (one_geometry["Width"] * 2 // 5 + 2, one_row,
++                    one_geometry["Width"] * 3 // 5 - 3, one_row)
++        one_image = args.output / "one-row-ready.png"
++        first_row = signature(unicode, (pane[0], row, pane[2], row))[1]
++        wait_image(single, one_image, one_pane, expected=first_row)
++        need(signature(one_image, one_pane)[1] == first_row,
++             "one-row Ready content differs from the normal first text row")
++    finally:
++        single.close()
++    print(f"PASS preview text GUI screenshots: {', '.join(p.name for p in args.output.glob('*.png'))}")
++
++
++if __name__ == "__main__":
++    main()
+--- a/openspec/changes/add-text-preview/tasks.md
++++ b/openspec/changes/add-text-preview/tasks.md
+@@ -1,6 +1,6 @@
+ # Tasks
+ 
+-Apply is authorized through the asynchronous preview-helper checkpoint (groups 1–3); final text preparation, scrolling, clipmenu integration and installation require separate review and authorization. The decisions and scenario inventory are in `design.md` and `specs/`. Tests use synthetic data only and must not touch the existing daemon/history or real clipboard.
++Apply is authorized through Checkpoint 4A (groups 1–3 and task 4.1): safe text preparation, UTF-8 handling and soft wrapping. Scrolling, clipmenu integration, deployment and installation require separate review and authorization. The decisions and scenario inventory are in `design.md` and `specs/`. Tests use synthetic data only and must not touch the existing daemon/history or real clipboard.
+ 
+ Land and verify each increment before the next. If event-loop/process-management state or machinery becomes substantially more complex than the file-local single-request design, stop and flag the concrete expansion for review before implementing it. Do not add dependencies, fzy/fzf integration, a generic job framework or a permanent worker; preserve no-preview behavior.
+ 
+@@ -25,7 +25,7 @@
+ 
+ ## 4. Text preparation and scrolling
+ 
+-- [ ] 4.1 Implement bounded preview-only sanitization and soft wrapping with existing font measurement, explicit byte lengths/NUL handling, UTF-8 boundaries, four-column tabs, control replacement and blank lines. Process at most 256 codepoints per event-loop turn, with separate allocation/work ceilings and cancellation; helper deadline ends at collection/process completion, not layout completion. Verify malformed/read-split/cap-split UTF-8, CJK/emoji/combining text, long lines and CR/ESC/C0/C1/DEL. Prove a successful helper whose preparation finishes after launch + 1000 ms does not time out and input remains serviceable. Keep one compact malformed-text/wrap-progress regression check and run ASan/UBSan on it.
++- [x] 4.1 Implement bounded preview-only sanitization and soft wrapping with existing font measurement, explicit byte lengths/NUL handling, UTF-8 boundaries, four-column tabs, control replacement and blank lines. Process at most 256 codepoints per event-loop turn, with separate allocation/work ceilings and cancellation; helper deadline ends at collection/process completion, not layout completion. Verify malformed/read-split/cap-split UTF-8, CJK/emoji/combining text, long lines and CR/ESC/C0/C1/DEL. Prove a successful helper whose preparation finishes after launch + 1000 ms does not time out and input remains serviceable. Keep one compact malformed-text/wrap-progress regression check and run ASan/UBSan on it.
+ - [ ] 4.2 Add preview-only Alt-Up/Down, Alt-PageUp/PageDown and Alt-Home/End; clamp offsets and reset only on selection changes. Document keys and text limits. Verify scrolling reaches every retained row without editing input, changing selection or emitting stdout, while original Alt-letter, Ctrl and ordinary navigation remain unchanged.
+ - [ ] 4.3 Exercise initial selection, Up/Down, Ctrl-n/p, paging, Home/End, typing, deletion, Tab and paste in fuzzy and `-F` modes with and without `-i`. Verify preview identity and selected output against baseline, same-selection redraws do not respawn, and no-match transitions clear stale content without collapsing the body.
+ 
+@@ -117,3 +117,13 @@
+ - Initial GUI runs stalled on Xvfb infrastructure (repeated server resets writing to an undrained stderr pipe). They remain failed partial evidence; recovery used `-noreset`, file-backed stderr and five successful connection probes before the accepted runs. The production application and existing harness were not changed to make these runs pass.
+ - Exact integration deltas, commands, compiler warnings, raw screenshots/process diagnostics, successful and superseded results, strict validation and preservation checks are retained under `evidence/fuzzymatch-integration/`; see its `report.md`. The same four pre-existing signedness warnings remain.
+ - Progress remains 10/21. No task checkbox in groups 4–6 is changed or claimed complete. There is no sanitization/wrapping/scrolling/clipmenu work, installation, Xmonad interaction, real clipboard access, staging, new commit or history rewrite. Integration verification stops for a separate review of the working-tree delta.
++
++## Checkpoint 4A evidence
++
++- Task 4.1 is complete; progress is 11/21. Tasks 4.2–4.3 and groups 5–6 remain unchecked. This checkpoint does not authorize scrolling, clipmenu, deployment, installation or Xmonad changes.
++- Implementation and verification occurred only in `/home/avo/Projects/private/dmenu-preview-next`, branch `dev/add-text-preview-next`, created at approved commit `34b0888632fca8100531f938dff6e59c070db683`. `make config.h` generated distributed defaults; no private configuration was copied. Original root files/index and the approved branch were checked unchanged.
++- File-local incremental preparation preserves the raw result and terminal-state precedence, sanitizes explicit-length bytes, and soft-wraps by existing scalar Xft advances. LF retains blank/trailing rows; CR (including CRLF's CR), NUL, ESC, C0/C1/DEL and invalid UTF-8 bytes become U+FFFD. Four-codepoint-column tabs reset only on LF. Work is at most 256 codepoints per loop turn, including expanded spaces. Prepared text and row offsets are separately bounded by `4 * raw_length + 1`; rows are published only after completion and discarded on selection change.
++- Native production-include checks passed normal, UBSan and ASan/UBSan with leak detection enabled: exact-length unterminated raw buffers, malformed and cap/read-split UTF-8, all byte values, ANSI-like controls, explicit row ends, zero-width/overwide glyphs, maximum tab expansion and LF rows, cancellation, work budgets and a real successful helper whose preparation completed after launch + 1000 ms. Existing byte-boundary checks passed eight reports per build; fuzzy checks and 156 cross-build matrix comparisons passed.
++- Owned isolated-Xvfb runs passed all existing 90-report full baseline/lifecycle comparisons and 42-report token-mode lifecycle checks for normal, UBSan and ASan/UBSan. Each lifecycle run confirmed 201 real stress starts, 200 active resource samples and 210 timely cooperative-group observations. New text GUI checks passed all three builds, including pending-layout selection/Escape, protected input/list/footer pixels, narrow panes, alternate fonts and `-l 1`.
++- ASan GUI runs used `detect_leaks=0` only to isolate invalid access from the known unrelated Fontconfig exit leak. They are not leak-free claims; historical leak-enabled diagnostics remain preserved. Native probes kept leak detection enabled. Valgrind, OpenBSD runtime, Xmonad and physical-monitor verification were unavailable or outside this checkpoint.
++- Synthetic screenshots, logs, raw diagnostics, exact source diff, commands, buffer bounds and limitations are retained in `evidence/checkpoint-4a/`. Xft grapheme shaping and font coverage remain existing limitations; only the initial visible wrapped rows are shown. Earlier evidence is unchanged.

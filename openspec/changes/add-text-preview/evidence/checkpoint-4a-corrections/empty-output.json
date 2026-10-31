@@ -1,0 +1,47 @@
+{
+  "scope": "Accepted Checkpoint 4A closure only; no scrolling, clipmenu or installation",
+  "command": "python3 /home/avo/.local/state/dmenu-checkpoints/p1-focused-a4pye5re/close-empty.py",
+  "exit": 0,
+  "display": "Owned disposable Xvfb, 1024x768x24; real Xft metrics and pixels",
+  "build": "Fresh disposable source copy, C99 -pedantic -Wall -Os, existing local configuration copied without modification",
+  "empty_output": {
+    "helper_stdout_bytes": 0,
+    "helper_exit": 0,
+    "body_rows_checked": [5, 1],
+    "displayed_state": "No preview",
+    "real_Xft_reference_pixels_match": true,
+    "observation_seconds_after_menu_mapping": [0.12353003199677914, 0.11686315096449107],
+    "state_stable_after_additional_seconds": 1.1,
+    "direct_children_after_completion": 0,
+    "return_stdout_hex": "7461726765740a",
+    "return_exit": 0
+  },
+  "state_transition": "Loading -> PreviewEmpty after stdin closure, stdout EOF and observed exit 0; drawpreview maps PreviewEmpty to No preview without pending preparation",
+  "production_defect": false,
+  "production_or_test_changes": false,
+  "permanent_regression": "Existing helper-empty status and single-row No preview pixel assertions in tests/preview-checkpoint.py retained",
+  "p1_atomic_yields": {
+    "exit": 0,
+    "stdout": "PASS atomic UTF-8 and tab-space yields"
+  },
+  "p2_real_Xft": {
+    "exit": 0,
+    "advance": 70,
+    "glyph_mismatch": 0,
+    "ellipsis_difference": 350,
+    "blank_difference": 342,
+    "ordinary_ellipsis_mismatch": 0,
+    "prefix_mismatch": 0,
+    "outside_pixels": 0
+  },
+  "accepted_production_and_config_snapshot_unchanged": true,
+  "performance_matrix_and_full_lifecycle_repeated": false,
+  "sanitizers": "Prior accepted coverage retained unchanged; no new production code. Native leak-enabled and GUI leak-disabled ASan results remain separate from known Fontconfig exit leak.",
+  "raw_evidence": "/home/avo/.local/state/dmenu-checkpoints/p1-focused-a4pye5re/close-4a-empty-qy4w83e1",
+  "superseded_probe_attempt": "One-row reference initially sampled Loading before reference-helper completion. Added reference synchronization in disposable probe; rerun passed. Not a production failure.",
+  "initial_git_lists": {
+    "staged_paths": 53,
+    "unstaged_paths": 0,
+    "untracked": [".omp/", "config.h"]
+  }
+}

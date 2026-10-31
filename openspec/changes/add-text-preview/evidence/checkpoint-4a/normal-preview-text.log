@@ -1,0 +1,2 @@
+PASS completed helper: valid UTF-8 split at byte 4096, layout ready at 1714 ms, budget <=256
+PASS preview text preparation and late-layout lifecycle

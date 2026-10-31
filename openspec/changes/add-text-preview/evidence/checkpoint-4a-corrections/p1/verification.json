@@ -1,0 +1,141 @@
+{
+  "checks": [
+    {
+      "name": "normal-preview-boundary",
+      "command": [
+        "/home/avo/.local/state/dmenu-checkpoints/p1-focused-a4pye5re/normal/preview-boundary"
+      ],
+      "exit": 0,
+      "expected": 0
+    },
+    {
+      "name": "ubsan-preview-boundary",
+      "command": [
+        "/home/avo/.local/state/dmenu-checkpoints/p1-focused-a4pye5re/ubsan/preview-boundary"
+      ],
+      "exit": 0,
+      "expected": 0
+    },
+    {
+      "name": "asan-preview-boundary",
+      "command": [
+        "/home/avo/.local/state/dmenu-checkpoints/p1-focused-a4pye5re/asan/preview-boundary"
+      ],
+      "exit": 0,
+      "expected": 0
+    },
+    {
+      "name": "normal-probe-final",
+      "command": [
+        "/home/avo/.local/state/dmenu-checkpoints/p1-focused-a4pye5re/normal/preview-text"
+      ],
+      "exit": 0,
+      "expected": 0
+    },
+    {
+      "name": "ubsan-probe-final",
+      "command": [
+        "/home/avo/.local/state/dmenu-checkpoints/p1-focused-a4pye5re/ubsan/preview-text"
+      ],
+      "exit": 0,
+      "expected": 0
+    },
+    {
+      "name": "asan-probe-final",
+      "command": [
+        "/home/avo/.local/state/dmenu-checkpoints/p1-focused-a4pye5re/asan/preview-text"
+      ],
+      "exit": 0,
+      "expected": 0
+    },
+    {
+      "name": "normal-text-gui-final",
+      "command": [
+        "python3",
+        "/home/avo/Projects/private/dmenu-preview-next/tests/preview-text.py",
+        "--binary",
+        "/home/avo/.local/state/dmenu-checkpoints/p1-focused-a4pye5re/normal/dmenu",
+        "--layout-probe",
+        "/home/avo/.local/state/dmenu-checkpoints/p1-focused-a4pye5re/normal/preview-text",
+        "--clip-probe",
+        "/home/avo/.local/state/dmenu-checkpoints/p1-focused-a4pye5re/normal/preview-clip",
+        "--output",
+        "/home/avo/.local/state/dmenu-checkpoints/p1-focused-a4pye5re/normal-text-gui-final",
+        "--isolated-display"
+      ],
+      "exit": 0,
+      "expected": 0
+    },
+    {
+      "name": "ubsan-text-gui-final",
+      "command": [
+        "python3",
+        "/home/avo/Projects/private/dmenu-preview-next/tests/preview-text.py",
+        "--binary",
+        "/home/avo/.local/state/dmenu-checkpoints/p1-focused-a4pye5re/ubsan/dmenu",
+        "--layout-probe",
+        "/home/avo/.local/state/dmenu-checkpoints/p1-focused-a4pye5re/ubsan/preview-text",
+        "--clip-probe",
+        "/home/avo/.local/state/dmenu-checkpoints/p1-focused-a4pye5re/ubsan/preview-clip",
+        "--output",
+        "/home/avo/.local/state/dmenu-checkpoints/p1-focused-a4pye5re/ubsan-text-gui-final",
+        "--isolated-display"
+      ],
+      "exit": 0,
+      "expected": 0
+    },
+    {
+      "name": "asan-text-gui-final",
+      "command": [
+        "python3",
+        "/home/avo/Projects/private/dmenu-preview-next/tests/preview-text.py",
+        "--binary",
+        "/home/avo/.local/state/dmenu-checkpoints/p1-focused-a4pye5re/asan/dmenu",
+        "--layout-probe",
+        "/home/avo/.local/state/dmenu-checkpoints/p1-focused-a4pye5re/asan/preview-text",
+        "--clip-probe",
+        "/home/avo/.local/state/dmenu-checkpoints/p1-focused-a4pye5re/asan/preview-clip",
+        "--output",
+        "/home/avo/.local/state/dmenu-checkpoints/p1-focused-a4pye5re/asan-text-gui-final",
+        "--isolated-display"
+      ],
+      "exit": 0,
+      "expected": 0
+    },
+    {
+      "name": "lifecycle",
+      "command": [
+        "python3",
+        "/home/avo/Projects/private/dmenu-preview-next/tests/preview-checkpoint.py",
+        "--baseline",
+        "/tmp/checkpoint4a-latency-review/baseline/dmenu",
+        "--binary",
+        "/home/avo/.local/state/dmenu-checkpoints/p1-focused-a4pye5re/normal/dmenu",
+        "--output",
+        "/home/avo/.local/state/dmenu-checkpoints/p1-focused-a4pye5re/lifecycle",
+        "--isolated-display"
+      ],
+      "exit": 0,
+      "expected": 0
+    }
+  ],
+  "native_leak_detection": true,
+  "gui_asan_leak_detection": false,
+  "known_fontconfig_exit_leak": "Not reclassified; prior leak-enabled evidence retained separately.",
+  "resolved_harness_failures": [
+    "Profile previously included drawing measurements outside preparation steps.",
+    "Native text probe lacked production SIGPIPE handling for early helper input closure.",
+    "Profiling early return bypassed intentional real-font delay in pending-layout GUI checks."
+  ],
+  "raw_logs": "/home/avo/.local/state/dmenu-checkpoints/p1-focused-a4pye5re",
+  "p2": {
+    "advance": 70,
+    "glyph_mismatch": 0,
+    "ellipsis_difference": 349,
+    "blank_difference": 341,
+    "ordinary_ellipsis_mismatch": 0,
+    "prefix_mismatch": 0,
+    "outside_pixels": 0
+  },
+  "scope": "Checkpoint 4A P1 only; no additional production changes"
+}

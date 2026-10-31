@@ -24,8 +24,8 @@ Running dmenu
 See the man page for details.
 
 
-Asynchronous preview checkpoint (development only)
--------------------------------------------------
+Text preparation checkpoint 4A (development only)
+------------------------------------------------
 `-P /absolute/helper -l 12` runs a trusted executable directly and draws its
 text in the approved 40/60 split below the search input. The helper receives
 the unchanged selected label plus LF through stdin, then EOF. Its argv has
@@ -47,17 +47,34 @@ containment guarantees. This is not a sandbox for hostile helper executables.
 Without `-P`, dmenu still blocks in XNextEvent without preview allocations,
 children or periodic polling.
 
-The last body row is reserved for status; preceding rows display clipped
-newline-separated output. With one body row, Ready displays its first line
-and other states display status. Final UTF-8/control sanitization, wrapping,
-scrolling and clipmenu integration are not implemented. Do not deploy this
+The last body row is reserved for status; preceding rows display the initial
+visible portion of soft-wrapped text. With one body row, Ready displays its
+first row and other states display status. LF preserves explicit empty and
+trailing rows. CR (including CRLF's CR), NUL, ESC, remaining C0/C1 controls,
+DEL and invalid UTF-8 bytes become U+FFFD; terminal escapes are not interpreted.
+Tabs expand to four codepoint-column stops, reset on LF but not soft wraps.
+Valid UTF-8 is retained. Wrapping uses the active Xft scalar advances, never
+splits a codepoint, and clips glyph ink to each preview row. Grapheme clusters,
+complex shaping and missing-font glyph coverage retain existing Xft limitations.
+
+Preparation processes at most 256 codepoints per event-loop turn, counting
+expanded tab spaces as work. Loading remains visible until layout is complete;
+selection changes discard pending layout. The helper deadline ends at completed
+collection, not layout. Raw storage remains 65537 bytes; display storage is at
+most 4 * retained raw bytes + 1, and row offsets have at most that many size_t
+entries (262145 display bytes and 262145 entries at the raw cap). These separate
+allocation ceilings include sanitization expansion and narrow-pane wrapping.
+Only pending preparation uses zero-timeout polling.
+
+Scrolling and clipmenu integration are not implemented. Do not deploy this
 checkpoint as a finished clipboard UI or replace a working installed dmenu.
 
 Build and test only disposable source copies, preserving configuration and
 existing binaries/objects:
 
     work=$(mktemp -d /tmp/dmenu-preview-async.XXXXXX)
-    cp Makefile config.mk *.c *.h "$work/"
+    cp Makefile config.mk *.c config.def.h arg.h drw.h util.h "$work/"
+    make -C "$work" config.h
     make -C "$work" CC='cc -Wextra'
     cat > "$work/preview" <<'EOF'
     #!/bin/sh
@@ -128,6 +145,49 @@ flags must be present during compilation and linking. PREVIEW_TEST_HELPER must
 always name the normal, uninstrumented probe, even for a sanitized parent: the
 production protocol discards helper stderr. Parent diagnostics remain captured.
 The native probe can run with leak detection enabled.
+
+Safe-text regression checks use `tests/preview-text.c`, which includes the
+production scanner/layout with deterministic font advances and an explicit
+256-codepoint progress check. Build it like preview-boundary, substituting
+preview-text for the target and source name. Run with
+`PREVIEW_TEXT_HELPER=/absolute/normal/preview-text /absolute/build/preview-text`;
+the producer must be the normal uninstrumented probe even for sanitized parents.
+Native leak detection stays enabled. This checks a real completed helper whose
+deliberately slow preparation finishes beyond the helper deadline.
+Build `tests/preview-clip.c` the same way with target `preview-clip`. It uses
+real Liberation Mono:size=8 and DejaVu Sans:size=48 on a 24-bit isolated display,
+comparing a 70-pixel overwide glyph in a 40x16 region against an independent
+clipped Xft reference, ellipsis and blank pixels. It also checks a preceding
+font run, ordinary ellipsis and isolation from subsequent drawing calls.
+
+On an owned isolated X11 server, run:
+
+    python3 tests/preview-text.py --binary /absolute/build/dmenu \
+        --layout-probe /absolute/build/preview-text \
+        --clip-probe /absolute/build/preview-clip \
+        --output /tmp/text-results --isolated-display
+
+Use an empty output directory. Synthetic helpers cover Unicode, malformed/control
+bytes, wrapping, narrow panes and alternate fonts; screenshots and process stderr
+are retained. The test-only layout probe delays font measurement to make pending
+preparation and cancellation observable without a production hook or option.
+
+The focused real-Xft responsiveness benchmark builds instrumented probes in
+disposable source copies and starts its own Xvfb:
+
+    python3 tests/preview-fonts.py --short \
+        --baseline-source /absolute/starting-4a-copy \
+        --corrected-source /absolute/current-copy \
+        --xvfb /absolute/Xvfb --output /tmp/font-results
+
+Both copies must have `config.h`; the driver copies the current test probe into
+their `tests/` directories. Short mode measures 1/8 KiB varied Unicode inputs,
+three Escape/Return repetitions each, and complete preparation with per-step
+and per-glyph timings. `samples.json` and `complete-preparation.json` retain
+raw results and actual widths. Only measurements inside preparation steps
+participate in width comparisons. Baseline latency is observational, not a
+requirement that every injected event exceed 100 ms. The 4 ms preparation
+budget yields between glyphs; it cannot interrupt a synchronous Xft lookup.
 
 For focused ASan lifecycle checks in both fuzzy and token modes,
 `ASAN_OPTIONS=detect_leaks=0` isolates invalid accesses from the known Fontconfig

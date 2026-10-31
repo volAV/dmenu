@@ -1,0 +1,86 @@
+{
+  "normal": {
+    "reports": {
+      "gui-full": 90,
+      "gui-token": 42,
+      "gui-text": 3,
+      "preview-boundary": 8,
+      "preview-text": 2
+    },
+    "group_observations": 210,
+    "max_group_observation_seconds": 1.1822633870178834,
+    "stderr_records": 172,
+    "sanitizer_diagnostics": [],
+    "warnings": [
+      "dmenu.c:565:41: warning: operand of \u2018?:\u2019 changes signedness from \u2018int\u2019 to \u2018unsigned int\u2019 due to unsignedness of other operand [-Wsign-compare]",
+      "dmenu.c:568:41: warning: operand of \u2018?:\u2019 changes signedness from \u2018int\u2019 to \u2018unsigned int\u2019 due to unsignedness of other operand [-Wsign-compare]",
+      "dmenu.c:683:39: warning: comparison of integer expressions of different signedness: \u2018unsigned int\u2019 and \u2018int\u2019 [-Wsign-compare]",
+      "dmenu.c:1341:39: warning: comparison of integer expressions of different signedness: \u2018int\u2019 and \u2018unsigned int\u2019 [-Wsign-compare]"
+    ],
+    "layout_timings": [
+      "PASS pending-layout selection: 0.184s including driver observation",
+      "PASS pending-layout Escape: 0.048s including driver observation"
+    ],
+    "late_layout": "PASS completed helper: valid UTF-8 split at byte 4096, layout ready at 1714 ms, budget <=256",
+    "binary_sha256": "7fe88f8c73f8c96b638eb0cba1ee155e6d7e3ac757baadeeef8102e7e6e91003"
+  },
+  "ubsan": {
+    "reports": {
+      "gui-full": 90,
+      "gui-token": 42,
+      "gui-text": 3,
+      "preview-boundary": 8,
+      "preview-text": 2
+    },
+    "group_observations": 210,
+    "max_group_observation_seconds": 1.1972563159943093,
+    "stderr_records": 172,
+    "sanitizer_diagnostics": [],
+    "warnings": [
+      "dmenu.c:565:41: warning: operand of \u2018?:\u2019 changes signedness from \u2018int\u2019 to \u2018unsigned int\u2019 due to unsignedness of other operand [-Wsign-compare]",
+      "dmenu.c:568:41: warning: operand of \u2018?:\u2019 changes signedness from \u2018int\u2019 to \u2018unsigned int\u2019 due to unsignedness of other operand [-Wsign-compare]",
+      "dmenu.c:683:39: warning: comparison of integer expressions of different signedness: \u2018unsigned int\u2019 and \u2018int\u2019 [-Wsign-compare]",
+      "dmenu.c:1341:39: warning: comparison of integer expressions of different signedness: \u2018int\u2019 and \u2018unsigned int\u2019 [-Wsign-compare]"
+    ],
+    "layout_timings": [
+      "PASS pending-layout selection: 0.181s including driver observation",
+      "PASS pending-layout Escape: 0.017s including driver observation"
+    ],
+    "late_layout": "PASS completed helper: valid UTF-8 split at byte 4096, layout ready at 1717 ms, budget <=256",
+    "binary_sha256": "a4af0cdff474eca53a21b6f25f75c54e954872525185a80d721837daaa20c229"
+  },
+  "asan": {
+    "reports": {
+      "gui-full": 90,
+      "gui-token": 42,
+      "gui-text": 3,
+      "preview-boundary": 8,
+      "preview-text": 2
+    },
+    "group_observations": 210,
+    "max_group_observation_seconds": 1.2032266759779304,
+    "stderr_records": 172,
+    "sanitizer_diagnostics": [],
+    "warnings": [
+      "dmenu.c:565:41: warning: operand of \u2018?:\u2019 changes signedness from \u2018int\u2019 to \u2018unsigned int\u2019 due to unsignedness of other operand [-Wsign-compare]",
+      "dmenu.c:568:41: warning: operand of \u2018?:\u2019 changes signedness from \u2018int\u2019 to \u2018unsigned int\u2019 due to unsignedness of other operand [-Wsign-compare]",
+      "dmenu.c:683:39: warning: comparison of integer expressions of different signedness: \u2018unsigned int\u2019 and \u2018int\u2019 [-Wsign-compare]",
+      "dmenu.c:1341:39: warning: comparison of integer expressions of different signedness: \u2018int\u2019 and \u2018unsigned int\u2019 [-Wsign-compare]"
+    ],
+    "layout_timings": [
+      "PASS pending-layout selection: 0.185s including driver observation",
+      "PASS pending-layout Escape: 0.017s including driver observation"
+    ],
+    "late_layout": "PASS completed helper: valid UTF-8 split at byte 4096, layout ready at 1729 ms, budget <=256",
+    "binary_sha256": "3e9c273d342b1cbea722daebb63dcac277cf35c56bdfe70f89fe9f34b5108e85"
+  },
+  "compiler": "cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+  "gui_asan_leak_detection": false,
+  "native_asan_leak_detection": true,
+  "openspec_progress": {
+    "total": 21,
+    "complete": 11,
+    "remaining": 10
+  },
+  "default_configuration_generated": true
+}
