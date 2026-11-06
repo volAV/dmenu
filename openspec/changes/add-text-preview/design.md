@@ -58,6 +58,8 @@ Pass precisely `sel->text` plus LF through stdin, then EOF. Labels already come 
 
 Output states are fixed content-free `Loading`, `No preview`, `Unavailable`, `Timed out`, and `Truncated` indicators rendered inside the pane; no helper messages or sensitive stderr are surfaced. Status space is stable; all retained content remains scrollable. Successful empty output is `No preview`. An ordinary nonzero helper exit without detected overflow discards incomplete output as unavailable. Detecting an additional byte beyond 65536 bytes latches an overflow terminal cause: retain a safely renderable prefix marked truncated and cancel the producer. Its subsequent SIGKILL/signalled/nonzero status must not overwrite Truncated with Unavailable or Timed out. A superseding selection still discards that result. Exactly 65536 bytes followed by EOF and successful process completion within the helper deadline is successful, not truncated.
 
+Checkpoint 4B clarification, explicitly approved by the user: keep the existing footer geometry. With `-l 1`, Truncated occupies the only body row and has no text viewport; at least two body rows are required to read truncated content. Successful single-row previews remain scrollable. This is the sole exception to retained-text reachability, not authorization to redesign the input row or pane.
+
 ### 3. Nonblocking event-loop and lifecycle
 
 Preview state remains file-local in `dmenu.c`: current requested item/generation, pending selection/debounce time, child PID/process-group identity, pipe fds and stdin offset, monotonic deadline, bounded output and rendered row offsets, scroll offset, and result state. No generic job abstraction or background service.

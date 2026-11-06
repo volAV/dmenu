@@ -94,6 +94,10 @@ The preview SHALL preserve newline structure and empty lines, soft-wrap long lin
 - **WHEN** a single line exceeds the output limit, including a multibyte sequence split at the byte cap
 - **THEN** wrapping and scrolling remain bounded, the incomplete tail is safely replaced or omitted, and truncation is visibly indicated
 
+#### Scenario: Single-row truncated geometry
+- **WHEN** a truncated result is displayed with `-l 1`
+- **THEN** the existing single status row SHALL remain Truncated without a text viewport; this user-approved Checkpoint 4B exception requires at least two body rows to read truncated text, while successful single-row previews SHALL remain scrollable
+
 ### Requirement: Independent keyboard scrolling
 In preview mode Alt-Up/Down SHALL scroll one visual row, Alt-PageUp/PageDown SHALL scroll one viewport, and Alt-Home/End SHALL move to preview boundaries. Scrolling SHALL clamp to available rows without changing selection, search text, cursor, or stdout. Existing unmodified navigation and existing Alt-letter bindings SHALL remain unchanged.
 

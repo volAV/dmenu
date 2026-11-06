@@ -58,6 +58,7 @@ __cyg_profile_func_exit(void *function, void *caller)
 static Drw testdrw;
 static int slow_metrics;
 static char *testraw;
+static size_t metric_calls;
 
 unsigned int
 preview_test_width(Drw *context, const char *text)
@@ -68,6 +69,7 @@ preview_test_width(Drw *context, const char *text)
 	const unsigned char *s = (const unsigned char *)text;
 	unsigned int width;
 
+	metric_calls++;
 	if (slow_metrics || slow_budget_metrics)
 		nanosleep(&delay, NULL);
 	if (context != &testdrw) {
@@ -168,6 +170,72 @@ check_rows(const size_t *ends, size_t count)
 			require(preview.rows[i] >= preview.rows[i - 1], "row ends are not ordered");
 	}
 }
+static void
+check_scrolling(void)
+{
+	static const unsigned char textrows[] = "abWWWc\n\nB\n";
+	struct item first = { .text = "first" }, second = { .text = "second" };
+	size_t calls, row, rawpos;
+	char *display;
+	size_t *rows;
+
+	lines = 4; /* Three text rows and the unchanged status footer. */
+	begin(textrows, sizeof(textrows) - 1, 5);
+	finish();
+	require(preview.rowcount == 7, "scroll fixture lost wraps, blank or trailing rows");
+	calls = metric_calls;
+	rawpos = preview.rawpos;
+	display = preview.display;
+	rows = preview.rows;
+	require(!previewscroll(XK_Up) && !previewscroll(XK_Home),
+	        "scroll moved before first row");
+	for (row = 1; row <= 4; row++)
+		require(previewscroll(XK_Down) && preview.scroll == row,
+		        "single-row scroll skipped a prepared visual row");
+	require(!previewscroll(XK_Down) && !previewscroll(XK_End),
+	        "scroll exceeded last full viewport");
+	require(previewscroll(XK_Prior) && preview.scroll == 1,
+	        "page up did not move one viewport");
+	require(previewscroll(XK_Next) && preview.scroll == 4,
+	        "page down did not clamp a partial final page");
+	require(previewscroll(XK_Home) && preview.scroll == 0 &&
+	        previewscroll(XK_End) && preview.scroll == 4,
+	        "Home/End did not reach viewport boundaries");
+	require(metric_calls == calls && preview.rawpos == rawpos &&
+	        preview.display == display && preview.rows == rows,
+	        "scrolling repeated preparation or replaced prepared storage");
+	preview.item = sel = &first;
+	previewselect();
+	require(preview.scroll == 4, "same selection reset scrolling");
+	sel = &second;
+	previewselect();
+	require(preview.scroll == 0 && !preview.prepared && preview.state == PreviewLoading,
+	        "new selection retained old scroll or layout");
+	require(!previewscroll(XK_End), "Loading accepted scrolling");
+	sel = NULL;
+	previewselect();
+	require(!preview.scroll && preview.state == PreviewIdle,
+	        "no-match cancellation retained scrolling");
+	preview.due = 0;
+	begin((const unsigned char *)"short\n", 6, 80);
+	finish();
+	require(!previewscroll(XK_End) && !previewscroll(XK_Next),
+	        "fitting preview scrolled or underflowed");
+	lines = 1;
+	require(previewscroll(XK_End) && preview.scroll == 1,
+	        "single-row Ready viewport lost trailing empty row");
+	preview.scroll = 0;
+	preview.state = PreviewTruncated;
+	require(!previewcapacity() && !previewscroll(XK_Down),
+	        "single-row Truncated must preserve status-only geometry");
+	begin((const unsigned char *)"", 0, 80);
+	finish();
+	require(!previewscroll(XK_End), "empty prepared preview scrolled");
+	lines = 4;
+	preview.item = NULL;
+	puts("PASS visual-row scrolling: line/page/bounds, reuse, selection reset, short/empty");
+}
+
 static void
 check_text(const unsigned char *raw, size_t rawlen, const char *expected,
            size_t expectedlen, size_t rows, unsigned int width)
@@ -407,6 +475,7 @@ main(int argc, char **argv)
 	check_text(one_glyph, sizeof(one_glyph), "W", 1, 1, 0);
 
 	check_atomic_yields();
+	check_scrolling();
 
 	/* Expanded spaces count toward the per-turn budget and retain tab stops across wraps. */
 	memset(tabs, '\t', sizeof(tabs));
@@ -440,12 +509,19 @@ main(int argc, char **argv)
 	        preview.rows[preview.rowcount - 1] == preview.displayused &&
 	        preview.display[preview.displayused] == '\0',
 	        "maximum tab expansion exceeded display/row bounds");
+	require(previewscroll(XK_End) && preview.scroll == PREVIEWMAX * 4 - 3 &&
+	        !previewscroll(XK_Down) && previewscroll(XK_Home),
+	        "maximum expanded preview scroll exceeded prepared rows");
 	memset(capped, '\n', sizeof(capped));
 	begin(capped, sizeof(capped), 1);
 	finish();
 	require(preview.displayused == PREVIEWMAX && preview.rowcount == PREVIEWMAX + 1 &&
 	        preview.rows[PREVIEWMAX] == PREVIEWMAX,
 	        "maximum LF input lost its trailing empty row");
+	require(previewscroll(XK_End) && preview.scroll == PREVIEWMAX - 2 &&
+	        previewscroll(XK_Up) && preview.scroll == PREVIEWMAX - 3 &&
+	        previewscroll(XK_Home),
+	        "maximum blank preview lost end or trailing-row access");
 
 	memset(longline, 'W', sizeof(longline));
 	begin(longline, sizeof(longline), 5);

@@ -78,7 +78,7 @@ static struct {
 	size_t sent, inputlen, used;
 	char *buf, *display;
 	size_t *rows;
-	size_t displayused, rowcount, rawpos;
+	size_t displayused, rowcount, rawpos, scroll;
 	unsigned int prepwidth, rowwidth, column, prepwork;
 	int prepared, tabspaces;
 } preview = { .input = -1, .output = -1 };
@@ -312,6 +312,7 @@ previewselect(void)
 	previewprepare_reset();
 	preview.item = sel;
 	preview.generation++;
+	preview.scroll = 0;
 	preview.used = 0;
 	preview.buf[0] = '\0';
 	preview.state = sel ? PreviewLoading : PreviewIdle;
@@ -625,6 +626,44 @@ drawitem(struct item *item, int x, int y, int w)
 	return drw_text(drw, x, y, w, bh, lrpad / 2, item->text, 0);
 }
 
+static unsigned int
+previewcapacity(void)
+{
+	return lines > 1 ? lines - 1 : (lines && preview.state == PreviewReady);
+}
+
+static int
+previewscroll(KeySym key)
+{
+	size_t capacity = previewcapacity(), limit, old = preview.scroll, step = 1;
+
+	if (!preview.prepared || !capacity)
+		return 0;
+	limit = preview.rowcount > capacity ? preview.rowcount - capacity : 0;
+	preview.scroll = MIN(preview.scroll, limit);
+	switch (key) {
+	case XK_Home:
+		preview.scroll = 0;
+		break;
+	case XK_End:
+		preview.scroll = limit;
+		break;
+	case XK_Prior:
+		step = capacity;
+		/* fallthrough */
+	case XK_Up:
+		preview.scroll -= MIN(preview.scroll, step);
+		break;
+	case XK_Next:
+		step = capacity;
+		/* fallthrough */
+	case XK_Down:
+		preview.scroll += MIN(limit - preview.scroll, step);
+		break;
+	}
+	return old != preview.scroll;
+}
+
 static void
 drawpreview(void)
 {
@@ -633,7 +672,7 @@ drawpreview(void)
 	};
 	int x = itemw + 1, state;
 	unsigned int row, count, y;
-	size_t start = 0, end;
+	size_t start = 0, end, index;
 	char saved;
 
 	drw_setscheme(drw, scheme[SchemeNorm]);
@@ -643,11 +682,16 @@ drawpreview(void)
 	state = preview.state;
 	if ((state == PreviewReady || state == PreviewTruncated) && !preview.prepared)
 		state = PreviewLoading;
-	count = lines > 1 ? lines - 1 : (state == PreviewReady);
+	count = previewcapacity();
 	if (preview.prepared && (preview.state == PreviewReady ||
 	                         preview.state == PreviewTruncated))
-		for (row = 0; row < count && row < preview.rowcount; row++) {
-			end = preview.rows[row];
+		for (row = 0; row < count && preview.scroll + row < preview.rowcount; row++) {
+			index = preview.scroll + row;
+			if (!row && index) {
+				start = preview.rows[index - 1];
+				start += start < preview.displayused && preview.display[start] == '\0';
+			}
+			end = preview.rows[index];
 			saved = preview.display[end];
 			preview.display[end] = '\0';
 			y = (row + 1) * bh;
@@ -1002,6 +1046,15 @@ keypress(XKeyEvent *ev)
 		}
 	} else if (ev->state & Mod1Mask) {
 		switch(ksym) {
+		case XK_Up:
+		case XK_Down:
+		case XK_Prior:
+		case XK_Next:
+		case XK_Home:
+		case XK_End:
+			if (previewcmd && previewscroll(ksym))
+				drawmenu();
+			return;
 		case XK_b:
 			movewordedge(-1);
 			goto draw;

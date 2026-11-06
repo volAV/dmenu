@@ -88,8 +88,8 @@ For launcher changes, also check shell syntax and discovery/execution with
 isolated cache/PATH and benign inputs. For install changes, stage installation
 and inspect binaries/scripts and manuals rather than overwriting host files.
 
-The `add-text-preview` implementation is authorized through Checkpoint 4A:
-safe UTF-8/control preparation and soft wrapping, but not scrolling or clipmenu.
+The `add-text-preview` implementation is authorized through Checkpoint 4B:
+safe UTF-8/control preparation, soft wrapping and vertical scrolling, not clipmenu.
 `-P /absolute/helper` requires an explicit positive decimal `-l`. The executable
 receives the selected label plus LF on stdin; argv/environment never carry it.
 The single helper group uses nonblocking I/O, 40 ms debounce, a 1000 ms deadline
@@ -104,7 +104,7 @@ untouched. Run `python3 tests/preview-checkpoint.py --baseline /absolute/baselin
 --binary /absolute/new --output /tmp/screenshots --isolated-display` as one command,
 with DISPLAY set only to an owned disposable Xvfb/Xephyr server. Tests use xdotool,
 xwininfo and ImageMagick; never point them at real history or the working desktop.
-Do not install this checkpoint; scrolling and clipmenu remain pending.
+Do not install this checkpoint; clipmenu remains pending.
 The GUI harness requires an empty output directory, confirms at least 200 real
 helper starts, and retains stderr on every outcome. Byte-exact collection uses
 `tests/preview-boundary.c`, including the real private lifecycle functions;
@@ -120,6 +120,18 @@ font/clipping and pending-layout interaction checks on an owned X server.
 `tests/preview-clip.c` compares real overwide-glyph pixels against independent
 Xft clipping, ellipsis and blank references. These probes are test-only,
 not production CLI options.
+Alt-Up/Down scroll one prepared visual row, Alt-PageUp/PageDown one text
+viewport, and Alt-Home/End to viewport boundaries. Only item identity changes
+reset the offset; redraws and cursor-only edits retain it. Scrolling reuses the
+prepared buffer/row ends without helper invocation or preparation. The existing
+status footer reduces capacity by one when `-l` exceeds one. The explicitly
+accepted `-l 1` Truncated exception remains status-only; use at least two rows
+to read truncated content. Do not redesign that geometry as part of scrolling.
+`tests/preview-scroll.py --binary /absolute/current/dmenu --baseline
+/absolute/baseline/dmenu --output /tmp/scroll-results --isolated-display`
+checks scrolling pixels and a baseline/input matrix on an owned display.
+It needs an empty output directory and uses installed `xclip` only to own
+synthetic PRIMARY data for paste; never run it on the working desktop.
 Preparation handles at most 256 codepoints per event-loop turn, including tab
 expansion, and yields after a 4 ms monotonic budget between glyphs. A single
 synchronous Xft lookup cannot be interrupted by that budget.

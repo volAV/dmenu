@@ -98,7 +98,7 @@ owned helper group and closes pipes without blocking for exit. Cooperative
 descendants are included; descendants intentionally leaving the group are not
 contained. Keyboard release and menu exit never wait for helper termination.
 .IP
-This checkpoint shows the initial visible portion of soft-wrapped text.
+Prepared soft-wrapped text is vertically scrollable.
 LF preserves empty and trailing lines; tabs expand to four codepoint-column
 stops, reset by LF but not soft wraps. CR, NUL, ESC, other C0/C1 controls,
 DEL and invalid UTF-8 bytes become U+FFFD. Terminal escapes are not interpreted.
@@ -111,7 +111,16 @@ expanded tab spaces, and is cancelled on selection changes. Loading remains
 visible until layout is complete. The helper deadline does not include layout.
 Display storage is separately bounded to four bytes per retained raw byte plus
 one terminator, with at most that many row-offset entries.
-Scrolling and clipboard integration are not yet implemented.
+Alt-Up/Down scroll one visual row, Alt-PageUp/PageDown scroll one text
+viewport, and Alt-Home/End move to the first/last viewport.
+Offsets clamp to the last full viewport (or zero when the text fits),
+including blank and trailing rows. Only selection changes reset scrolling;
+cursor-only edits and redraws retain it. Scrolling does not restart the helper,
+prepare text again, edit input or move selection. Existing Ctrl, Alt-letter
+and unmodified navigation commands are unchanged.
+With one body row, Truncated remains status-only; use at least two body rows
+to read truncated text.
+Clipboard integration is not yet implemented.
 Enter still outputs the original label, never preview content.
 Without
 .BR \-P ,
