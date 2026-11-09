@@ -1,0 +1,20 @@
+#!/bin/sh
+# Read-only adapter for clipmenu 6 labels; ancestors and same-UID peers are trusted.
+exec 2>/dev/null
+[ "$#" -eq 0 ] || exit 1
+LC_ALL=C
+export LC_ALL
+case ${USER-} in
+''|.|..|*[!a-zA-Z0-9_.-]*) exit 1 ;;
+esac
+IFS= read -r label || exit 1
+cache=${CM_DIR-${XDG_RUNTIME_DIR-${TMPDIR-/tmp}}}/clipmenu.6.$USER
+[ ! -L "$cache" ] && [ -d "$cache" ] || exit 1
+owner=$(stat -c %u -- "$cache") || exit 1
+mode=$(stat -c %a -- "$cache") || exit 1
+[ "$owner" = "$(id -u)" ] && [ "$((0$mode & 077))" -eq 0 ] || exit 1
+checksum=$(printf '%s\n' "$label" | cksum) || exit 1
+file=$cache/$checksum
+[ ! -L "$file" ] && [ -f "$file" ] && [ -r "$file" ] || exit 1
+# These checks are not atomic; cat may emit a prefix if streaming later fails.
+exec cat -- "$file"

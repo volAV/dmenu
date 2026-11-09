@@ -24,7 +24,7 @@ Running dmenu
 See the man page for details.
 
 
-Text preview checkpoint 4B (development only)
+Text preview checkpoint 5B (development only)
 -------------------------------------------
 `-P /absolute/helper -l 12` runs a trusted executable directly and draws its
 text in the approved 40/60 split below the search input. The helper receives
@@ -76,8 +76,110 @@ cursor movement, Expose and same-selection redraws retain it. Pending/loading
 or empty results do not scroll. Ctrl shortcuts and existing Alt-letter/list
 navigation retain their original behavior.
 
-Clipmenu integration is not implemented. Do not deploy this
-checkpoint as a finished clipboard UI or replace a working installed dmenu.
+The standalone `clipmenu-preview` adapter is included in the source distribution,
+but is not installed by the generic `make install` target. Do not replace a
+working installed dmenu or enable this integration against real history without
+separate deployment authorization.
+
+The adapter accepts no arguments. It reads the original display label plus LF
+from stdin with `IFS= read -r`, then streams the cached payload unchanged,
+including binary bytes and trailing newlines. It uses unset-only
+`${CM_DIR-${XDG_RUNTIME_DIR-${TMPDIR-/tmp}}}` defaults; an explicitly empty
+base means `/clipmenu.6.$USER`, not a fallback. USER must contain only ASCII
+letters, digits, `_`, `.`, or `-`, and cannot be empty, `.` or `..`. The filename
+is the complete `cksum` output for the exact label plus one LF: CRC, a space,
+and byte count. It does not regenerate labels or read `line_cache`.
+
+Use this exact development invocation with the installed clipmenu launcher:
+
+    CM_LAUNCHER=/home/avo/Projects/private/dmenu-preview-next/dmenu \
+      clipmenu -i -p Clipboard \
+      -P /home/avo/Projects/private/dmenu-preview-next/clipmenu-preview -l 12
+
+`CM_LAUNCHER` is one executable path, not a command string. clipmenu initially
+adds `-l "$CM_HISTLENGTH"` (default 8), then forwards the command-line arguments
+unchanged; the final `-l 12` overrides the initial value. The selected label
+continues back through clipmenu's existing restoration path. The adapter only
+reads the cache; it never writes history or clipboard/PRIMARY and dmenu's output
+cap applies only to preview display, not restoration.
+
+The final cache directory must be nonsymlink, current-UID-owned and have no
+group/other permissions. Payloads must be readable regular nonsymlink files.
+GNU `stat`, `id`, `cksum` and `cat` are used; there are no new dependencies.
+Detected pre-stream errors return nonzero with no payload or diagnostics.
+Duplicate labels overwrite the same checksum-named cache file, and checksum
+collisions are not disambiguated: the adapter reads whichever current file
+clipmenu's lookup names. Cache retention can remove a payload. Ancestor
+directories, PATH tools and same-UID peers are trusted. Shell path checks are
+not atomic against concurrent mutation; concurrent rewrites can expose changing
+or partial bytes, and streaming I/O failure can expose a prefix. No locking,
+snapshot consistency, sandboxing or stronger identity guarantee is provided.
+
+Focused synthetic verification (does not run clipmenu or any X client):
+
+    sh -n clipmenu-preview
+    python3 tests/clipmenu-preview.py
+
+The regression uses private temporary fixtures, with a unique synthetic USER
+and exclusive mkdir for its `/tmp` fallback cache. It compares Bash here-string
+checksums, byte-exact payloads, defaults and filesystem rejection boundaries,
+checking fixture contents/permissions around each invocation. Foreign ownership
+uses optional `fakeroot` metadata simulation only for non-root runs. That case
+is skipped if fakeroot is unavailable or EUID is zero: fakeroot may allow a
+real privileged chown when run as root. Root also skips the unreadable-file
+case because root can read mode 000.
+
+The launcher/restoration regression owns its Xvfb and uses a synthetic cache,
+fake `xsel`, and isolated PATH. Run it with an absolute installed launcher,
+disposable dmenu binary, Xvfb executable and empty output directory:
+
+    python3 tests/clipmenu-launcher.py \
+        --launcher /home/avo/.guix-profile/bin/clipmenu \
+        --binary /absolute/disposable/dmenu \
+        --xvfb /tmp/dmenu-preview-checkpoint-RBbWFs/xvfb/usr/bin/Xvfb \
+        --output /absolute/empty/results
+
+The test invokes `/usr/bin/bash /home/avo/.guix-profile/bin/clipmenu` so Bash
+runs the installed wrapper's body directly, bypassing the Guix Guile wrapper
+and its PATH changes without modifying the installed launcher. It must never
+execute the wrapper normally, start the daemon, invoke real `xsel`, or access
+real history/clipboard. It compares both fake clipboard and PRIMARY sink bytes
+with the original multiline fixture payload, and verifies the selected display
+label is unchanged. Checkpoint 5B results are recorded in OpenSpec tasks.md.
+
+Optional installation is a later, separately authorized action—not current
+deployment authorization. After approval and independent verification, choose
+the actual binary, manual and helper destinations; back up the existing dmenu
+binary and manual and any existing helper before replacing files, and record
+the prior `CM_LAUNCHER` executable and forwarded arguments so they can be
+restored. Install the helper explicitly at a user-selected executable path;
+the generic install target remains unchanged. Rollback restores the backed-up
+binary, manual and helper (or removes only the newly added helper), then uses
+the recorded previous `CM_LAUNCHER` and arguments without `-P`. Neither install
+nor rollback requires a daemon restart or history migration. No install,
+replacement or real-history invocation is authorized by these instructions.
+
+For an explicitly approved helper-only installation (no dmenu replacement):
+
+    helper="$HOME/.local/libexec/clipmenu-preview"
+    backup=$(mktemp -d "$HOME/clipmenu-preview-backup.XXXXXX")
+    if [ -e "$helper" ] || [ -L "$helper" ]; then
+        cp -Pp -- "$helper" "$backup/clipmenu-preview"
+    fi
+    install -d "$HOME/.local/libexec"
+    install -m 755 ./clipmenu-preview "$helper"
+
+Record the backup path and whether a helper previously existed. Change only
+the invocation's `-P` path to this absolute destination; `CM_LAUNCHER` still
+names the separately approved development binary. To undo this helper-only
+procedure, first restore the prior launcher configuration without `-P`, then
+restore the saved helper with `cp -Pp` or remove the newly created file if
+none existed. Replacing dmenu itself also requires the binary/manual backups
+described above and the separate group-6 delivery gates.
+
+The Checkpoint 5B integration smoke and fixture restoration evidence belong to
+the current OpenSpec change. Do not treat them as completion of the full
+group-6 suite or authorization to deploy.
 
 Build and test only disposable source copies, preserving configuration and
 existing binaries/objects:

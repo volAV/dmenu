@@ -14,6 +14,8 @@ utility, and two POSIX shell launcher scripts. The source version is defined in
 - `stest.c`: file predicates and directory enumeration used by `dmenu_path`.
 - `dmenu_path`: executable-name discovery and its per-user cache.
 - `dmenu_run`: asynchronous pipeline from executable discovery to menu to shell.
+- `clipmenu-preview`: optional read-only POSIX helper for clipmenu 6 payloads;
+  included in source distributions, but not installed by generic `make install`.
 - `config.def.h`: distributed compile-time defaults; `config.h`: active local
   compile-time configuration; `config.mk`: compiler, linker, and install paths.
 - `dmenu.1`, `stest.1`: command-line and interaction documentation.
@@ -39,6 +41,7 @@ Xinerama is optional by disabling its two settings there.
 | Staged install | `make install DESTDIR=/tmp/dmenu-stage PREFIX=/usr` | Choose a disposable staging directory; does not install into the host `/usr`. |
 | Source archive | `make dist` | Runs clean, then packages the Makefile's explicit source list, not every repository file. |
 | Shell syntax | `sh -n dmenu_path && sh -n dmenu_run` | Checks both launchers without executing them. |
+| Helper regression | `sh -n clipmenu-preview && python3 tests/clipmenu-preview.py` | Synthetic fixtures only; never runs clipmenu, xsel or X clients. |
 | Version smoke | `./dmenu -v` | Exits before opening an X display. |
 | File-filter smoke | `./stest -f dmenu.c` | Prints `dmenu.c` and exits 0. |
 | Interactive menu | `printf 'alpha\nbeta\n' \| ./dmenu` | Requires a working X display and fonts; not a headless check. |
@@ -88,14 +91,41 @@ For launcher changes, also check shell syntax and discovery/execution with
 isolated cache/PATH and benign inputs. For install changes, stage installation
 and inspect binaries/scripts and manuals rather than overwriting host files.
 
-The `add-text-preview` implementation is authorized through Checkpoint 4B:
-safe UTF-8/control preparation, soft wrapping and vertical scrolling, not clipmenu.
+The `add-text-preview` implementation is authorized through Checkpoint 5B:
+groups 1–4 plus helper/integration tasks 5.1–5.3 only. Deployment, installation
+and group 6 remain outside authorization.
 `-P /absolute/helper` requires an explicit positive decimal `-l`. The executable
 receives the selected label plus LF on stdin; argv/environment never carry it.
 The single helper group uses nonblocking I/O, 40 ms debounce, a 1000 ms deadline
 and 65536-byte cap. Overflow takes precedence over forced producer failure.
 Exit releases the keyboard without waiting for group termination. Trusted
 helpers must not deliberately escape the group; this is not a sandbox.
+
+`clipmenu-preview` accepts no arguments and follows the existing label-plus-LF
+stdin protocol. Cache lookup uses unset-only CM_DIR/XDG_RUNTIME_DIR/TMPDIR
+defaults, `clipmenu.6.$USER` and the full label-plus-LF cksum filename. USER
+allows only ASCII letters/digits/underscore/dot/hyphen, excluding empty, dot
+and dot-dot. It requires a nonsymlink current-UID-owned private final directory
+and readable regular nonsymlink payload, then streams bytes unchanged without
+clipboard/cache writes or sensitive diagnostics. GNU stat and existing POSIX
+tools are used. Ancestors/PATH/same-UID peers are trusted; checks are not atomic,
+and streaming failures may emit a prefix. No locking or snapshot guarantee.
+`tests/clipmenu-preview.py` verifies byte preservation and rejection boundaries,
+including fixture contents/modes/ownership/mtime preservation. Its /tmp fallback
+uses a unique synthetic USER and exclusive mkdir. Foreign ownership uses optional
+fakeroot metadata simulation only for non-root runs; EUID zero skips it because
+fakeroot may allow real privileged chown. Root also skips mode-000 unreadability.
+Keep these coverage limits explicit. GUI smoke must use an owned
+disposable X server, synthetic cache and disposable source build, never the
+working desktop. The launcher regression alone runs the installed clipmenu
+body with explicit Bash, bypassing its Guix wrapper, and an allowlisted PATH
+containing fake xsel. Never run the wrapper, daemon or real xsel in this check.
+`python3 tests/clipmenu-launcher.py --launcher /absolute/installed/clipmenu
+--binary /absolute/disposable/dmenu --xvfb /absolute/Xvfb
+--output /absolute/empty/results` owns its display and compares preview and
+clipboard/PRIMARY restoration bytes against synthetic multiline fixtures.
+README documents the exact CM_LAUNCHER invocation and optional installation
+and rollback; these instructions are not deployment authorization.
 
 The compile-time fixture is removed. Preserve the prior GUI evidence and use
 executable synthetic test helpers instead. Build baseline and current binaries
@@ -104,7 +134,7 @@ untouched. Run `python3 tests/preview-checkpoint.py --baseline /absolute/baselin
 --binary /absolute/new --output /tmp/screenshots --isolated-display` as one command,
 with DISPLAY set only to an owned disposable Xvfb/Xephyr server. Tests use xdotool,
 xwininfo and ImageMagick; never point them at real history or the working desktop.
-Do not install this checkpoint; clipmenu remains pending.
+Do not install this checkpoint; group-6 delivery gates remain pending.
 The GUI harness requires an empty output directory, confirms at least 200 real
 helper starts, and retains stderr on every outcome. Byte-exact collection uses
 `tests/preview-boundary.c`, including the real private lifecycle functions;
