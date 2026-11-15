@@ -47,9 +47,9 @@ Xinerama is optional by disabling its two settings there.
 | Interactive menu | `printf 'alpha\nbeta\n' \| ./dmenu` | Requires a working X display and fonts; not a headless check. |
 | OpenSpec validation | `openspec validate --all --strict` | Validates specs/changes, not semantic accuracy of this guide or project configuration. |
 
-No dev server, lint, formatter, standalone typecheck, automated test suite,
-CI workflow, code generator, migration, container, or infrastructure-validation
-command is defined in this checkout. Do not substitute invented targets.
+No dev server, lint, formatter, standalone typecheck, unified automated test
+target, CI workflow, code generator, migration, container, or infrastructure
+validation command is defined. Focused regression commands are documented below.
 
 # Architecture and Boundaries
 
@@ -91,9 +91,10 @@ For launcher changes, also check shell syntax and discovery/execution with
 isolated cache/PATH and benign inputs. For install changes, stage installation
 and inspect binaries/scripts and manuals rather than overwriting host files.
 
-The `add-text-preview` implementation is authorized through Checkpoint 5B:
-groups 1–4 plus helper/integration tasks 5.1–5.3 only. Deployment, installation
-and group 6 remain outside authorization.
+The `add-text-preview` implementation and acceptance checkpoints 1–6D are
+accepted; Checkpoint 6E covers only the final documentation/evidence audit
+(task 6.5). Deployment and host installation remain separately unauthorized;
+completion of the development gates does not authorize either.
 `-P /absolute/helper` requires an explicit positive decimal `-l`. The executable
 receives the selected label plus LF on stdin; argv/environment never carry it.
 The single helper group uses nonblocking I/O, 40 ms debounce, a 1000 ms deadline
@@ -127,6 +128,18 @@ clipboard/PRIMARY restoration bytes against synthetic multiline fixtures.
 README documents the exact CM_LAUNCHER invocation and optional installation
 and rollback; these instructions are not deployment authorization.
 
+Preview-only list drawing preserves a terminal clipmenu ` (N lines)` count
+for overflowing labels (canonical ASCII N >= 2), without editing item text.
+Fitting/unrecognized labels and no-preview rendering use the existing path.
+Narrow suffix/prefix runs are clipped within the original padded item.
+Build `tests/preview-label.c` in a disposable source copy as documented in
+README, then run `python3 tests/preview-label.py --binary /absolute/new/dmenu
+--baseline /absolute/starting/dmenu --probe /absolute/new/preview-label
+--xvfb /absolute/Xvfb --output /absolute/empty/results`. It owns its display,
+uses synthetic helpers only, and checks suffix pixels, confinement, schemes,
+helper/stdout identity and no-preview compatibility. This focused test alone
+does not satisfy the separate manual Xmonad or final documentation gates.
+
 The compile-time fixture is removed. Preserve the prior GUI evidence and use
 executable synthetic test helpers instead. Build baseline and current binaries
 in disposable source copies so local configuration, binaries and objects remain
@@ -134,7 +147,7 @@ untouched. Run `python3 tests/preview-checkpoint.py --baseline /absolute/baselin
 --binary /absolute/new --output /tmp/screenshots --isolated-display` as one command,
 with DISPLAY set only to an owned disposable Xvfb/Xephyr server. Tests use xdotool,
 xwininfo and ImageMagick; never point them at real history or the working desktop.
-Do not install this checkpoint; group-6 delivery gates remain pending.
+Do not install this checkpoint; development acceptance is not deployment approval.
 The GUI harness requires an empty output directory, confirms at least 200 real
 helper starts, and retains stderr on every outcome. Byte-exact collection uses
 `tests/preview-boundary.c`, including the real private lifecycle functions;
@@ -180,6 +193,14 @@ ordering by default; `a a` is the original single-match ASan reproducer.
 Its README build instructions require `make config.h` in a fresh disposable
 checkout. Native probes keep leak detection enabled; GUI memory-safety runs
 isolate the unrelated Fontconfig leak and retain separate leak-enabled results.
+Final evidence is indexed under Checkpoint 6E in
+`openspec/changes/archive/2026-10-28-add-text-preview/tasks.md`.
+Keep automated, sanitizer/resource, packaging/rollback and human Xmonad results
+separate. The accepted 6B DISPLAY protocol exception and default-ASan-quarantine
+RSS budget failure remain disclosed; bounded-quarantine coverage is not a
+default-quarantine stability claim. Valgrind was unavailable. OpenBSD runtime
+and other physical-monitor configurations remain untested; 6D covers only its
+operator-selected monitor/font and synthetic data.
 
 
 Keep CLI/help/manual and compile-time defaults consistent with behavior changes.

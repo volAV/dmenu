@@ -1,10 +1,9 @@
-# Spec Delta
+# text-preview Specification
 
 ## Purpose
-
 Provide optional keyboard-driven text previews without changing dmenu selection, matching, or pipeline semantics.
 
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Explicit opt-in and unchanged default mode
 The menu SHALL enable previews only with `-P` followed by an absolute executable path. Without `-P`, it SHALL retain existing CLI behavior, layout, matching, output, and resource characteristics, without starting helpers or allocating preview buffers.
@@ -27,6 +26,27 @@ In preview mode the menu SHALL retain a full-width search row above approximatel
 #### Scenario: Constrained geometry
 - **WHEN** the menu is placed at the bottom, on a selected monitor, or inside a small embedding window
 - **THEN** both panes and input remain inside the available geometry with at least one readable body row, or the menu exits 1 with a content-free geometry error if that is impossible
+
+### Requirement: Preview-list multiline count visibility
+Only in preview-enabled lists, overflowing labels ending in ` (N lines)`
+SHALL preserve the suffix at the right padded edge when it fits, shortening
+only the preceding text with an ellipsis. `N` SHALL be canonical ASCII decimal
+greater than one, without a leading zero. Fitting and unrecognized labels
+SHALL retain normal rendering. Highlighting, colors, padding, geometry and
+pane proportions SHALL remain unchanged.
+
+#### Scenario: Long first line of a multiline clip
+- **WHEN** a complete label has a long first-line prefix and terminal ` (3 lines)` that ordinary rendering would hide
+- **THEN** the list shows shortened prefix text and the complete count when it fits, with all shortened-run ink clipped inside the item region
+- **AND** the original complete label remains unchanged for selection, search, helper stdin, checksum lookup and stdout, independently of preview payload line lengths
+
+#### Scenario: Insufficient width
+- **WHEN** the padded item cannot hold both prefix text and the count, or cannot hold the count itself
+- **THEN** the count takes priority, any remaining prefix area contains clipped text/ellipsis, and the count is clipped safely if necessary; a padding-only row may be blank
+
+#### Scenario: Compatibility
+- **WHEN** labels are short, lack the exact recognized suffix, or dmenu runs without `-P`
+- **THEN** they retain the existing rendering path, and no new label cache, helper protocol, matching rule or output transformation is introduced
 
 ### Requirement: Original-label helper protocol
 The menu SHALL directly execute the configured program with no additional arguments, write the unchanged selected label plus one newline to stdin, then close stdin. Stdout SHALL be preview bytes only; stderr SHALL not be propagated or logged. Empty successful output SHALL mean no preview. Ordinary nonzero exit SHALL mean unavailable; a menu-forced exit after detected overflow SHALL retain the truncated result.

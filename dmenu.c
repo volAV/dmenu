@@ -616,12 +616,46 @@ cistrstr(const char *h, const char *n)
 static int
 drawitem(struct item *item, int x, int y, int w)
 {
+	const char *suffix, *digits;
+	unsigned int suffixw, dotsw;
+	int pad = lrpad / 2, available, prefixw;
+
 	if (item == sel)
 		drw_setscheme(drw, scheme[SchemeSel]);
 	else if (item->out)
 		drw_setscheme(drw, scheme[SchemeOut]);
 	else
 		drw_setscheme(drw, scheme[SchemeNorm]);
+
+	/* clipmenu's terminal count is presentation only; never split item->text. */
+	if (previewcmd && w > pad &&
+	    (suffix = strrchr(item->text, '(')) && suffix > item->text &&
+	    suffix[-1] == ' ' && suffix[1] >= '1' && suffix[1] <= '9') {
+		for (digits = suffix + 2; *digits >= '0' && *digits <= '9'; digits++)
+			;
+		if (!strcmp(digits, " lines)") &&
+		    (digits > suffix + 2 || suffix[1] >= '2') &&
+		    drw_fontset_getwidth_clamp(drw, item->text, w - pad + 1) >
+		    (unsigned int)(w - pad)) {
+			suffix--;
+			available = MAX(0, w - 2 * pad);
+			suffixw = drw_fontset_getwidth_clamp(drw, suffix, available);
+			prefixw = available - suffixw;
+			drw_text_clip(drw, x, y, w, bh, 0, "", 0);
+			if (prefixw > 0) {
+				dotsw = drw_fontset_getwidth_clamp(drw, "...", prefixw);
+				if ((unsigned int)prefixw > dotsw)
+					drw_text_clip(drw, x + pad, y, prefixw - dotsw,
+					              bh, 0, item->text, 0);
+				drw_text_clip(drw, x + pad + prefixw - dotsw, y,
+				              dotsw, bh, 0, "...", 0);
+			}
+			if (suffixw)
+				drw_text_clip(drw, x + pad + prefixw, y, suffixw,
+				              bh, 0, suffix, 0);
+			return x + w;
+		}
+	}
 
 	return drw_text(drw, x, y, w, bh, lrpad / 2, item->text, 0);
 }

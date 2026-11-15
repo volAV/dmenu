@@ -5,7 +5,9 @@ dmenu is an efficient dynamic menu for X.
 
 Requirements
 ------------
-In order to build dmenu you need the Xlib header files.
+Building requires a C99 compiler, make, and development headers/libraries for
+Xlib, Xft, Fontconfig and FreeType; the default build also uses Xinerama.
+The linker uses libm. Disable both Xinerama settings in config.mk if unwanted.
 
 
 Installation
@@ -24,13 +26,15 @@ Running dmenu
 See the man page for details.
 
 
-Text preview checkpoint 5B (development only)
--------------------------------------------
+Text preview (development only)
+-------------------------------
 `-P /absolute/helper -l 12` runs a trusted executable directly and draws its
 text in the approved 40/60 split below the search input. The helper receives
 the unchanged selected label plus LF through stdin, then EOF. Its argv has
 only the executable path; stdout is preview data and stderr goes to /dev/null.
 No clipboard text is evaluated as a command or added to the environment.
+An explicit positive decimal `-l` is required; preview mode is never enabled
+without `-P`.
 
 One request owns a helper process group. Selection changes cancel obsolete
 work and debounce for 40 ms. A 1000 ms monotonic deadline covers execution,
@@ -46,6 +50,14 @@ eventual, not an exit-time wait. Intentionally escaped descendants are outside
 containment guarantees. This is not a sandbox for hostile helper executables.
 Without `-P`, dmenu still blocks in XNextEvent without preview allocations,
 children or periodic polling.
+
+In preview mode, overflowing list labels ending in clipmenu's exact
+` (N lines)` suffix (ASCII decimal N >= 2, no leading zero) retain the count
+at the right padded edge. Only the preceding text is shortened. Fitting
+labels, other labels and all no-preview rendering remain unchanged. The
+original label is never edited: filtering, helper stdin/checksum lookup and
+selection stdout still use every original byte. At widths too small for the
+count, it is clipped inside the item; padding-only widths may be blank.
 
 The last body row is reserved for status; preceding rows display a scrollable
 viewport of soft-wrapped text. With one body row, Ready uses that row; other
@@ -153,21 +165,31 @@ the actual binary, manual and helper destinations; back up the existing dmenu
 binary and manual and any existing helper before replacing files, and record
 the prior `CM_LAUNCHER` executable and forwarded arguments so they can be
 restored. Install the helper explicitly at a user-selected executable path;
-the generic install target remains unchanged. Rollback restores the backed-up
-binary, manual and helper (or removes only the newly added helper), then uses
-the recorded previous `CM_LAUNCHER` and arguments without `-P`. Neither install
-nor rollback requires a daemon restart or history migration. No install,
-replacement or real-history invocation is authorized by these instructions.
+the generic install target remains unchanged. Record each chosen destination
+and whether it existed. For example, with `PREFIX=/usr`, generic installation
+places dmenu at `/usr/bin/dmenu` and its manual at
+`/usr/share/man/man1/dmenu.1`; optional helper installation uses the separately
+chosen path. Save pre-existing files as `$backup/dmenu`, `$backup/dmenu.1`
+and `$backup/clipmenu-preview` using `cp -Pp`, and record the absolute backup
+directory. Stop if any backup fails. Do not overwrite a symlink destination:
+resolve and approve its actual target separately or stop.
+Rollback first restores the recorded previous `CM_LAUNCHER` executable and
+arguments without `-P`, then copies each saved file back to its recorded
+destination with `cp -Pp`. Remove only destinations recorded as absent before
+installation; never remove a pre-existing file without its saved replacement.
+Neither install nor rollback requires a daemon restart or history migration.
+No install, replacement or real-history invocation is authorized here.
 
 For an explicitly approved helper-only installation (no dmenu replacement):
 
     helper="$HOME/.local/libexec/clipmenu-preview"
-    backup=$(mktemp -d "$HOME/clipmenu-preview-backup.XXXXXX")
-    if [ -e "$helper" ] || [ -L "$helper" ]; then
-        cp -Pp -- "$helper" "$backup/clipmenu-preview"
+    backup=$(mktemp -d "$HOME/clipmenu-preview-backup.XXXXXX") || exit 1
+    [ ! -L "$helper" ] || exit 1
+    if [ -e "$helper" ]; then
+        cp -Pp -- "$helper" "$backup/clipmenu-preview" || exit 1
     fi
-    install -d "$HOME/.local/libexec"
-    install -m 755 ./clipmenu-preview "$helper"
+    install -d "$HOME/.local/libexec" || exit 1
+    install -m 755 ./clipmenu-preview "$helper" || exit 1
 
 Record the backup path and whether a helper previously existed. Change only
 the invocation's `-P` path to this absolute destination; `CM_LAUNCHER` still
@@ -223,21 +245,21 @@ than fixed glyph hashes. Use matching baseline/current configuration and fonts,
 not custom themes, for the screenshot comparisons.
 
 Approved earlier GUI screenshots and logs remain unchanged under
-`openspec/changes/add-text-preview/evidence/`. Their compile-time fixture and
+`openspec/changes/archive/2026-10-28-add-text-preview/evidence/`. Their compile-time fixture and
 checkpoint notice have been removed from the application; synthetic content
 now comes exclusively from executable test helpers.
 
 Async-checkpoint source delta, screenshots and executable verification results
-are retained under `openspec/changes/add-text-preview/evidence/async/`.
+are retained under `openspec/changes/archive/2026-10-28-add-text-preview/evidence/async/`.
 Post-review harness corrections and fresh verification evidence are retained
-under `openspec/changes/add-text-preview/evidence/async-review/`.
+under `openspec/changes/archive/2026-10-28-add-text-preview/evidence/async-review/`.
 Those directories retain historical sanitizer findings from before integration
 of reviewed fix `32fafa2ce7daf1a683e3039bbaf7a9007823e986`: fuzzy filtering
 read one pointer beyond the sorted match array. The bounds-first loop correction
 is now integrated; the fuzzy algorithm and token-mode behavior are unchanged.
 Fontconfig exit leaks remain unrelated and unfixed.
 Fresh integration commands, outcomes, diagnostics and preservation checks are
-under `openspec/changes/add-text-preview/evidence/fuzzymatch-integration/`.
+under `openspec/changes/archive/2026-10-28-add-text-preview/evidence/fuzzymatch-integration/`.
 
 Byte-exact collection checks use `tests/preview-boundary.c`, a test-only
 translation unit including the real private lifecycle functions from dmenu.c.
@@ -300,6 +322,23 @@ in fuzzy/token and case-sensitive/insensitive modes. It retains process stderr;
 GUI ASan runs use `ASAN_OPTIONS=detect_leaks=0` for the accepted Fontconfig limit,
 separately from leak-enabled native probes and prior leak-enabled diagnostics.
 
+Focused multiline-label rendering checks build `tests/preview-label.c` like
+the production-include probes above, substituting `preview-label` for the
+target/source name. Copy both new test files plus `preview-scroll.py` into
+the disposable source copy. Then run:
+
+    python3 tests/preview-label.py --binary /absolute/build/dmenu \
+        --baseline /absolute/starting-build/dmenu \
+        --probe /absolute/build/preview-label --xvfb /absolute/Xvfb \
+        --output /absolute/empty/label-results
+
+This driver owns its X server and uses synthetic labels/payloads only.
+It checks real-Xft suffix pixels, item confinement at narrow widths,
+fitting/unrecognized-label compatibility, highlighting schemes, complete
+helper stdin and Return stdout, and no-preview baseline pixels. It retains
+screenshots and stderr without repeating the complete lifecycle/GUI suites.
+This focused check does not complete OpenSpec tasks 6.4 or 6.5.
+
 
 The focused real-Xft responsiveness benchmark builds instrumented probes in
 disposable source copies and starts its own Xvfb:
@@ -317,6 +356,15 @@ raw results and actual widths. Only measurements inside preparation steps
 participate in width comparisons. Baseline latency is observational, not a
 requirement that every injected event exceed 100 ms. The 4 ms preparation
 budget yields between glyphs; it cannot interrupt a synchronous Xft lookup.
+
+Final acceptance evidence and limits are indexed in the Checkpoint 6E section
+of `openspec/changes/archive/2026-10-28-add-text-preview/tasks.md`. Automated regressions,
+sanitizer/resource measurements, staged packaging/rollback and human-confirmed
+Xmonad observations are separate evidence categories, not deployment approval.
+The Fontconfig/Xft GUI exit leak remains; reduced-quarantine ASan measurements
+do not establish default-quarantine RSS stability. The accepted Checkpoint 6B
+DISPLAY protocol exception remains disclosed there. Valgrind was unavailable;
+OpenBSD runtime and other physical-monitor configurations remain untested.
 
 For focused ASan lifecycle checks in both fuzzy and token modes,
 `ASAN_OPTIONS=detect_leaks=0` isolates invalid accesses from the known Fontconfig

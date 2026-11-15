@@ -84,6 +84,35 @@ Keep one X window and the existing normal/selected/output schemes. In preview mo
 
 The full-width input/prompt row is unchanged. Body item rows start at x=0; use the existing `drawitem()` with left-pane width, retaining selection/output colors and linked-list paging. Right-pane rendering never mutates item strings, search strings, or fuzzy distances. Empty/missing preview and zero matches do not shrink the body.
 
+#### Preview-list multiline count preservation
+
+The explicitly requested pre-Xmonad visual improvement recognizes only the
+installed clipmenu terminal suffix ` (N lines)`, with canonical ASCII decimal
+`N >= 2` and no leading zero. Read-only inspection of the installed launcher
+confirms it passes complete labels unchanged; installed `clipmenud`'s
+`get_first_line()` appends `printf(" (%d lines)", NR)` when `NR > 1`.
+This is a presentation heuristic, not a new identity or metadata field.
+
+Keep this logic inside `drawitem()` behind `previewcmd`. Fitting labels and
+labels without the recognized suffix use the existing drawing path. Only an
+overflowing recognized label reserves the suffix at the right half-padding.
+Use the active font metrics and existing clipped text runs for the prefix,
+ellipsis and suffix; retain the selected/normal/output scheme, row dimensions,
+left padding, divider and 40/60 split. Do not change generic `drw_text()`.
+When the count plus padding fits, show it completely; give it priority over
+prefix text. If even the suffix cannot fit, clip it within the padded item;
+if padding consumes the width, leave the row blank. A very small remaining
+prefix region may show only a clipped ellipsis. No glyph ink from these runs
+may escape the item rectangle.
+
+Never modify or temporarily terminate `item->text`, allocate a label cache,
+or reconstruct labels from preview bytes. Matching, selection identity,
+helper label-plus-LF stdin/checksum lookup, Return/stdout, preview preparation
+and scrolling remain unchanged. Without `-P`, use the original renderer.
+Focused real-Xft and owned-X11 verification is documented in README; this
+addition does not complete the manual Xmonad or final documentation gates
+(tasks 6.4 and 6.5).
+
 Preprocess only preview bytes: LF creates rows including blank lines; tabs expand to four-column stops; invalid UTF-8 and C0/C1/DEL controls become U+FFFD. CR is inert replacement, not cursor movement; ESC is not ANSI. Embedded NUL must not end the byte buffer early. Use libc multibyte conversion with explicit byte lengths/state or an equivalently small checked scanner, then the existing font metrics/rendering for valid display text. UTF-8 codepoints, not bytes, are wrapping boundaries; full grapheme/shaping behavior is limited by existing Xft rendering. Soft-wrap at pixel width, guaranteeing consumption even when one glyph exceeds the pane. Build row offsets once per completed bounded result; draw only visible rows. Avoid repeatedly measuring an ever-growing prefix. No horizontal scrolling is needed because long lines wrap.
 
 Text preparation is also scheduled work, not an unbounded completion callback: sanitize and measure at most 256 codepoints per event-loop turn, then return to X events/deadlines. A selection change cancels pending row preparation just like helper output. Publish the completed current-generation layout only when ready; retain the fixed loading state meanwhile. Allow at most four display bytes per retained raw byte plus a terminator, and at most one row-offset entry per display byte plus one, using overflow-checked size arithmetic. These ceilings bound control/tab expansion and narrow-pane wrapping without assuming the raw cap alone bounds rendering latency.

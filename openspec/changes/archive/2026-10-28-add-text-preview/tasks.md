@@ -1,6 +1,6 @@
 # Tasks
 
-Apply is authorized through Checkpoint 5B (groups 1–4 and tasks 5.1–5.3): generic text preview, the standalone read-only clipmenu helper, launcher integration documentation, source packaging and isolated synthetic restoration verification. Group 6, deployment and installation remain outside authorization. The decisions and scenario inventory are in `design.md` and `specs/`. Tests use synthetic data only and must not touch the existing daemon/history or real clipboard.
+Checkpoint 6E closes task 6.5: all development implementation and acceptance tasks are complete, 21/21. Final documentation/source/evidence findings are indexed below; historical checkpoint records retain their original scope and outcomes. This is readiness for independent implementation review, not deployment or host-installation authorization. The accepted Checkpoint 6B DISPLAY protocol exception and all known limitations remain disclosed. Tests use synthetic data only and must not touch the existing daemon/history or real clipboard.
 
 Land and verify each increment before the next. If event-loop/process-management state or machinery becomes substantially more complex than the file-local single-request design, stop and flag the concrete expansion for review before implementing it. Do not add dependencies, fzy/fzf integration, a generic job framework or a permanent worker; preserve no-preview behavior.
 
@@ -39,11 +39,11 @@ Land and verify each increment before the next. If event-loop/process-management
 
 ## 6. Independent integration and delivery gates
 
-- [ ] 6.1 Run the complete X11 baseline/new comparison and adversarial scenarios in `design.md` using disposable Xvfb/Xephyr plus watchdog and synthetic screenshots; retain the earlier group-2 evidence rather than deferring that checkpoint here. Verify normal Return, Shift-Return, Ctrl-Return, Escape, no matches and empty stdin in preview and non-preview modes; measure responsiveness and record actual outputs/status, not just a passing checklist.
-- [ ] 6.2 Run clean warning-enabled builds plus isolated ASan/UBSan scenarios and Valgrind where available; inspect `/proc` fd/process-group/RSS stability through repeated interactions. Verify no new invalid access, unbounded preview growth, accumulated unreaped direct children while running, idle polling or preview allocations without `-P`. Verify cooperative groups terminate within the separate 2000 ms observation window after SIGKILL, without blocking menu exit or asserting instantaneous disappearance/containment of intentional escapees. Disclose tool/platform gaps and pre-existing defects.
-- [ ] 6.3 Stage installation with disposable DESTDIR and `PREFIX=/usr`, inspect installed binaries/scripts and version-substituted manuals, and verify source distribution includes intended helper/documentation without cleaning user artifacts. Verify rollback instructions identify backup binary/manual paths and disabling `-P`, with no history migration, daemon restart or host installation during checks.
-- [ ] 6.4 Perform final manual GUI verification under Xmonad with synthetic data on the intended monitor/font: inspect pane balance, highlight, Unicode wrapping, scroll/navigation, output and keyboard release. Record separate manual evidence; do not claim this gate from automated tests. Any real clipboard inspection or installation requires explicit permission; preserve the old user-local binary/manual before an approved deployment.
-- [ ] 6.5 Update existing project documentation and AGENTS.md only where actual commands or boundaries changed; remove throwaway fixtures/scripts and retain only compact behavioral regression checks. Verify final flags/protocol/keys/helper packaging, all acceptance scenario outcomes, removal of the early synthetic injection, and `openspec validate add-text-preview --strict` before requesting implementation review.
+- [x] 6.1 Run the complete X11 baseline/new comparison and adversarial scenarios in `design.md` using disposable Xvfb/Xephyr plus watchdog and synthetic screenshots; retain the earlier group-2 evidence rather than deferring that checkpoint here. Verify normal Return, Shift-Return, Ctrl-Return, Escape, no matches and empty stdin in preview and non-preview modes; measure responsiveness and record actual outputs/status, not just a passing checklist.
+- [x] 6.2 Run clean warning-enabled builds plus isolated ASan/UBSan scenarios and Valgrind where available; inspect `/proc` fd/process-group/RSS stability through repeated interactions. Verify no new invalid access, unbounded preview growth, accumulated unreaped direct children while running, idle polling or preview allocations without `-P`. Verify cooperative groups terminate within the separate 2000 ms observation window after SIGKILL, without blocking menu exit or asserting instantaneous disappearance/containment of intentional escapees. Disclose tool/platform gaps and pre-existing defects.
+- [x] 6.3 Stage installation with disposable DESTDIR and `PREFIX=/usr`, inspect installed binaries/scripts and version-substituted manuals, and verify source distribution includes intended helper/documentation without cleaning user artifacts. Verify rollback instructions identify backup binary/manual paths and disabling `-P`, with no history migration, daemon restart or host installation during checks.
+- [x] 6.4 Perform final manual GUI verification under Xmonad with synthetic data on the intended monitor/font: inspect pane balance, highlight, Unicode wrapping, scroll/navigation, output and keyboard release. Record separate manual evidence; do not claim this gate from automated tests. Any real clipboard inspection or installation requires explicit permission; preserve the old user-local binary/manual before an approved deployment.
+- [x] 6.5 Update existing project documentation and AGENTS.md only where actual commands or boundaries changed; remove throwaway fixtures/scripts and retain only compact behavioral regression checks. Verify final flags/protocol/keys/helper packaging, all acceptance scenario outcomes, removal of the early synthetic injection, and `openspec validate add-text-preview --strict` before requesting implementation review.
 
 ## First GUI checkpoint evidence
 
@@ -171,3 +171,266 @@ Land and verify each increment before the next. If event-loop/process-management
 - Makefile adds only `clipmenu-preview` to the source distribution list; generic install is unchanged. `make dist` ran only in `/var/tmp/dmenu-launcher-5b-bl2w_qh7/dist-source`. Archive `dmenu-5.4.tar.gz` contains the helper as a regular executable file, mode `0755`, 751 bytes, byte-identical to source, SHA256 `07ae42e9083b4550c589dab50dea83d7c6992df1ddfe1c757c0060a3d8643f22`; packaged README matches the final documentation.
 - Focused `sh -n` checks for helper/dmenu_path/dmenu_run and explicit `bash -n` of the installed launcher passed. Existing helper regression passed eight reports, including real mode-000 unreadability and fakeroot foreign-owner simulation. The disposable build with copied local config.h and `CC='cc -Wextra'` passed with the same four existing signedness warnings. Both `openspec validate add-text-preview --strict` and `openspec validate --all --strict` passed. Full preview GUI/lifecycle suites, real clipboard/history, daemon, Xmonad and group-6 gates were not exercised.
 - Logs, final trace, archive inspection and preservation manifests are retained under `/var/tmp/dmenu-launcher-5b-bl2w_qh7`; these temporary artifacts must be copied elsewhere if needed after system cleanup. Checksum identity, concurrent rewrites and trusted same-UID assumptions remain unchanged. Changes are left uncommitted for independent review.
+
+## Checkpoint 6A evidence
+
+- Authorized and completed only task 6.1; progress is 17/21. Starting branch/HEAD matched `dev/add-text-preview-next` / `95c755cf083acc5bd535efc199c45f44fb68264e`; tracked files and index were clean. Disposable archives of original pre-preview baseline `787050237a1b357e53efbec9ef5cc7870a51d041` and current HEAD were built under `/var/tmp/dmenu-6a-575h05o8`, using copied local `config.h` (byte-identical to distributed defaults), `make 'CC=cc -Wextra'` and GCC 13.3.0. Both version/stest smokes exited 0. Current build retained four signedness warnings; warning-free or task-6.2 sanitizer coverage is not claimed.
+- Fresh runs, not reused historical results: `python3 tests/preview-checkpoint.py --baseline /var/tmp/dmenu-6a-575h05o8/baseline/dmenu --binary /var/tmp/dmenu-6a-575h05o8/current/dmenu --output /var/tmp/dmenu-6a-575h05o8/async --isolated-display` exited 0 with 90/90 PASS and exactly 201 real stress-helper starts. It ran once. Coverage includes baseline horizontal/vertical pixels and output, matching variants, CLI/geometry/embedding, selection-dependent content, empty/no-match clearing, literal/long stdin protocol, delayed/nonreading/early-close/nonzero/missing/nonexecutable helpers, inherited stdout, timeout/overflow precedence, stale-result sampling, cancellation, output keys and keyboard reacquisition. Earlier group-2 screenshots/logs above remain unchanged.
+- `preview-boundary` passed eight reports: exact retained bytes at 65535/65536/65537, overflow over nonzero/signalled status, below-cap failure clearing and stdout-EOF timeout at 1001 ms. `preview-text` passed sanitization/wrapping, work/allocation ceilings and scroll invariants; a completed helper with UTF-8 split at byte 4096 reached prepared Ready at 1709 ms without helper timeout. Normal uninstrumented producers were used. Probe build/run commands are retained in `consolidated-commands.json`.
+- `python3 tests/preview-text.py --binary .../current/dmenu --layout-probe .../current/preview-text --clip-probe .../current/preview-clip --output .../text --isolated-display` exited 0: real-Xft clipping had zero glyph/reference mismatches and zero outside pixels; Unicode/control/malformed text, narrow/oversized fonts, pending-layout cancellation and single-row Ready passed. Pending-layout Escape took 17 ms including observation. `python3 tests/preview-scroll.py --binary .../current/dmenu --baseline .../baseline/dmenu --output .../scroll --isolated-display` exited 0, including 84 fuzzy/token and case-sensitive/insensitive baseline/preview navigation/filter/delete/Tab/paste cases, rendered preview identity, row/page/boundary scrolling, retained offsets and no helper respawn. Each suite ran once. Split-pane and scroll-end screenshots were visually inspected.
+- Supplemental existing-Menu-driver checks passed 36 output cases: original baseline, current without preview and current with preview, each with selected item, no match and empty stdin, each using Return/Shift-Return/Ctrl-Return/Escape. `supplement.json` records actual stdout hex, status and elapsed time. Return produced `alpha\n`, `z\n` or `\n` with status 0; Shift-Return produced `a\n`, `z\n` or `\n` with status 0; Escape produced no output/status 1; Ctrl-Return retained the process and its output until subsequent Escape/status 1. Return/Shift-Return/Escape injection-to-exit measurements were 4.97–7.95 ms. Four additional no-preview bottom/custom-font-prompt-colors/monitor/embed comparisons had identical pixels and `beta\n`/status 0.
+- Async measurements: stale-selection navigation 24 ms with 43 intermediate samples (maximum gap 24 ms); blocked-stdin zero-match cancellation 93 ms; running-helper Return/Shift-Return/Escape 68/80/69 ms; next-menu keyboard input succeeded. Under bounded Expose traffic, timeout appeared at 0.972 s with scheduler/measurement tolerance; navigation/cancellation took 67/68 ms. Rapid churn launched only the final blue request. The one stress pass retained 200 active samples, post-warmup RSS 2356–2357 pages and 4–5 FDs; all 201 groups were observed within their cancellation bounds. These observations do not complete the separate resource/sanitizer gate or prove containment of deliberate group escapees.
+- `sh -n clipmenu-preview` and `python3 tests/clipmenu-preview.py` exited 0 (eight reports, real unreadability and fakeroot ownership simulation; no coverage skips). `python3 tests/clipmenu-launcher.py --launcher /home/avo/.guix-profile/bin/clipmenu --binary .../current/dmenu --xvfb /tmp/dmenu-preview-checkpoint-RBbWFs/xvfb/usr/bin/Xvfb --output .../launcher` exited 0 for three synthetic restoration cases. Explicit Bash bypassed the installed wrapper; allowlisted PATH supplied fake xsel. Final-12/default-8 heights were 247/171 px, all six clipboard/PRIMARY sink streams and optional stdout matched original payload bytes, and cache contents/modes/ownership/mtimes were unchanged. Synthetic PRIMARY/CLIPBOARD sentinels also remained byte-identical after async, text and supplemental runs; scroll paste used only its own synthetic PRIMARY owner.
+- All GUI runs used owned 1024x768x24 Xvfb servers with `-displayfd -nolisten tcp -noreset -extension GLX`, finite inputs and subprocess watchdogs; servers were terminated. No working DISPLAY, real history/selections, daemon, normal launcher wrapper, Xmonad, installation or commit was used. Two throwaway-driver defects were corrected: the preflight wrongly expected `dmenu -v` status 1, and the supplement wrongly expected buffered Ctrl-Return stdout before baseline exit. The latter stopped only the supplement; only that short matrix and the not-yet-run launcher check were continued. No production defect was found. A context-mode RPC timeout left the original driver running; its eventual exit/status/logs were recovered without rerunning suites.
+- Evidence: `consolidated-commands.json`, `run.stdout`, `run.stderr`, `consolidated-outcome.json`, final `commands.json`/`outcome.json`, `supplement.json`, `async/`, `text/`, `scroll/`, `launcher/`, native/build logs and preservation manifests under `/var/tmp/dmenu-6a-575h05o8`. All 27 pre-existing untracked/configuration/output files matched SHA256, mode, size and mtime after verification. Driver sources are archived for reproduction. Temporary evidence must be copied before system cleanup. ASan/UBSan/Valgrind, alternate build configurations, OpenBSD, physical multi-monitor and manual Xmonad validation were not performed in 6A; tasks 6.2–6.5 remain unchecked.
+
+## Checkpoint 6B evidence and verification-protocol exception
+
+- Authorized only task 6.2. Initial verification branch/HEAD matched `dev/add-text-preview-next` / `fcfc851f9077bc9a0b754619d78369cf45293545`; tracked files and index were clean at that initial verification, not at evidence-packaging closure. Production C, the accepted helper, launchers, Makefile and original untracked files were not edited. No installation, daemon, clipboard/history access or commit occurred. Independent evidence review accepted the technical requirements and bounded the excluded DISPLAY protocol violation; the user authorized closure with that explicit exception. Task 6.2 is complete and progress is 18/21. Tasks 6.3–6.5 remain unchecked. Evidence packaging and closure did not rerun production verification.
+- GCC 13.3.0 clean disposable full builds passed for copied local configuration, distributed defaults, ASan+UBSan and UBSan. The current local `config.h` is byte-identical to distributed defaults, SHA256 `a15a16ad70ec24f2e1e6e3affcc611c107f61d9528d33480c076e6f7c3f58c74`. Builds used `-std=c99 -pedantic -Wall -Wextra`, retained Xinerama and `-lm`; sanitized builds added `-g -O1 -fno-omit-frame-pointer` and sanitizer flags at compilation/linking. Each retained exactly four existing signedness warnings at `dmenu.c:569,572,730,1397`; version and stest smokes passed. Initial source-copy omissions of `stest.c` are retained as harness failures, not successful builds.
+- Existing native `preview-boundary`, `preview-text` and both fuzzy invocations (default and original `a a` reproducer) exited 0 in all four configurations. ASan native leak detection stayed enabled; sanitized parents used uninstrumented normal producers. No native invalid-access, leak or UBSan diagnostics occurred. Existing real-Xft clipping probes passed under ASan+UBSan and UBSan: zero clipped-glyph/reference mismatches, zero prefix mismatches and zero outside pixels. Valgrind was unavailable, not a failure.
+- Focused GUI checks reused existing `Menu`, synthetic helper and group-observation instrumentation, not the 90-case/201-helper suite. Normal, UBSan and ASan+UBSan each passed 14 cases, including three workloads of 48 selection changes (blocked helper, overflow/preparation, successful content), timeout, stdout-EOF hang, inherited-stdout descendants, successful leader with remaining descendant, nonzero exit, Return/Escape and keyboard reacquisition. Each retained 157 timely group observations with no live members; active direct children never exceeded one, replaced children were reaped while the menu remained alive, and settled children were empty. FDs were 4 at rest, 5 with a blocked output pipe, returning to 4 after cancellation/error/timeout. Normal/UBSan post-warmup active RSS was constant per workload (normal 2484/2989/2439 pages; UBSan 2922/3466/2882), with one-page variation including final settlement.
+- Default ASan quarantine exceeded the disposable overflow RSS budget (8808–12467 pages); this is retained, not presented as a pass or a proven production leak. Normal/UBSan stabilized and native leak checks were clean. A repeated ASan GUI run with `detect_leaks=0:quarantine_size_mb=4:thread_local_quarantine_size_kb=64` passed with address/undefined checks enabled: overflow RSS plateaued at 7479 pages after warmup; post-warmup spans including settlement were 135/27/328 pages for blocked/overflow/content workloads. This is bounded-quarantine address-safety coverage, not default-quarantine RSS stability or GUI leak cleanliness. Fresh leak-enabled GUI exits with and without preview both reported the accepted Fontconfig/Xft exit leak: 8839 bytes in 128 allocations, exit 1; separate full stderr is retained.
+- Separate syscall traces measured successful group SIGKILL dispatch to no-live-member observation: menu exit 78.6 ms, timeout 19.6 ms, overflow 25.7 ms, successful leader cleanup 19.2 ms, all below 2000 ms. These are observation upper bounds using strace realtime timestamps, not instantaneous disappearance. Untraced Return/Escape menu-exit observations were 66.8–69.2 ms including injector overhead and the existing 50 ms driver sleep; subsequent menus accepted keyboard input. Conservative monotonic group checks include helper runtime before timeout and are separate from dispatch measurements. Deliberate group escapees, OpenBSD, physical monitors and Xmonad were not tested or claimed.
+- Without `-P`, 20 post-startup samples over one second showed 4 FDs, no children, constant RSS and zero CPU-tick growth in every successful GUI variant. A separate idle syscall trace remained unchanged for one second in an indefinite Xlib `poll(..., -1)`, not preview polling. Debugger inspection at the real event-loop entry found `preview.buf/display/rows == NULL`, PID/PGID zero, descriptors -1 and no pending deadlines. A disposable production-include allocation probe exercised 65 preparation sizes up to the raw cap: requested maxima are raw 65537 bytes, display 262145 bytes and 262145 `size_t` row entries; observed allocator usable sizes were 65544/262152/2101232 bytes. Allocator rounding is separate from the requested ceilings. The optional GUI debugger allocation breakpoint timed out and is excluded, not substituted for passing evidence.
+- Protocol exception: an additional leak-probe attempt put its menu on owned Xvfb but failed to override the Python harness process's inherited `DISPLAY`. `Menu.wait_window()` therefore issued read-only `xdotool search --onlyvisible --class dmenu` queries targeting the working display until its five-second watchdog expired. Independent review of the exact driver, execution traceback and harness control flow established that no successful window search occurred and execution stopped before key injection; no screenshot, clipboard or selection interaction followed. Only the no-preview menu started, on owned Xvfb, then was force-killed; no preview helper ran. Individual xdotool calls were not logged, so their exact count and server-side completion cannot be recovered. This violated the explicit no-working-DISPLAY instruction and is excluded from PASS coverage. The corrected leak comparison explicitly set Python's `os.environ["DISPLAY"]` to its owned Xvfb before any X client; it validly produced the separate leak-enabled diagnostics, not leak-clean exits. Independent review accepted the technical closure with this documented exception, not a claim that the original isolation protocol was followed perfectly.
+- The compact adjacent `evidence/checkpoint-6b.tar.gz` contains `INDEX.md`, `summary.json`, a per-file SHA256/provenance manifest, native build/probe logs, focused GUI results/groups/helper observations and per-process stderr, raw SIGKILL/idle traces, no-preview debugger/allocation evidence, clipping results, default-quarantine failure and bounded-quarantine results, and the final Fontconfig/Xft leak comparison. Both exact failed/corrected leak-driver sources and matching original tool-call/tool-result records were recovered from the verification transcript and retained under `protocol/`; they were not reconstructed. One selected historical original-baseline leak diagnostic is retained for the known-leak comparison, not an earlier checkpoint bundle. Full external originals remain under `/var/tmp/dmenu-checkpoint-6b`.
+- Packaging excludes historical/nested archives, duplicate production source snapshots, images, binaries, unrelated superseded experiments and preservation/host/index metadata. Helper JSONL removes only `argv`, environment-variable names and `environment_digest`, with every record and all other values preserved; the manifest discloses each transformation and original input hash. Relevant raw diagnostics, measurements, exact drivers/execution records and correlating PID/PGID values remain unchanged. Absolute paths remain only where needed for original-source/diagnostic fidelity. The default-quarantine failure retains its raw traceback range and partial results; full failed overflow samples were not retained and are not invented. The final GUI harness snapshot includes a later sample-save improvement, not an exact snapshot of that failed run.
+- Archive identity after packaging: 204 regular files, 92023 bytes compressed, SHA256 `ac96b3b8a9399808f7b11e3bbdf6c31ad4486de22ed42b88d7be8c6431cac7ca`. Inventory, member safety, evidence links, raw-file identity, disclosed metadata-only redactions and exact recovered drivers/records were checked without application execution. No unsafe paths, symlinks, nested archives, generated binaries or screenshots are included; a credential-pattern scan found no matches, not a guarantee of secret absence. The initial untracked before-manifest was lost with a context-mode temporary sandbox; no full before/after SHA256 preservation claim is made. Initial Git output remains in the verification transcript; final preservation metadata remains external, not in the compact package. A generated Python import cache was removed during verification. No original path was a mutation target.
+
+## Checkpoint 6C evidence
+
+- Authorized and completed only task 6.3. Starting branch/HEAD matched `dev/add-text-preview-next` / `8bcd3e537181219aea9d8f3488aebb3b9a08c50d`; `git diff --quiet` and `git diff --cached --quiet` exited 0. Initial untracked entries were `.omp/`, `config.h`, `dmenu`, `dmenu.o`, `drw.o`, `stest`, `stest.o`, and `util.o`. Progress is 19/21; tasks 6.4 and 6.5 remain unchecked. No production deployment is authorized.
+- Evidence workspace: `/var/tmp/dmenu-checkpoint-6c.7UPyUs`. Drivers `verify.py` and `rollback.py` both exited 0. `baseline.json`, `commands.json`, individual command stdout/stderr, `installed.json`, `archive-contents.json`, `delivery-result.json`, `rollback-commands.json`, `rollback-result.json` and `untracked-before.json` retain provenance and results. Evidence is external and must be preserved before temporary-directory cleanup.
+- Tracked source files were copied into separate `install-source` and `dist-source` directories, with a copied local `config.h` (SHA256 `a15a16ad70ec24f2e1e6e3affcc611c107f61d9528d33480c076e6f7c3f58c74`). Commands: `make PREFIX=/usr`; reviewed `make -n install DESTDIR=/var/tmp/dmenu-checkpoint-6c.7UPyUs/stage PREFIX=/usr`; then `make install` with the same overrides. Every dry-run destination was checked inside the initially empty absolute staging tree before execution. Build/install stderr was empty.
+- Exact generic-install inventory relative to `stage`: `usr/bin/dmenu`, `usr/bin/stest`, `usr/bin/dmenu_path`, `usr/bin/dmenu_run` (all 0755); `usr/share/man/man1/dmenu.1`, `usr/share/man/man1/stest.1` (both 0644). No helper or other files were installed. Executables/scripts matched disposable build/source bytes; manuals matched source bytes with every `VERSION` replaced by `5.4`, with no placeholder remaining. Installed `dmenu -v`, `stest -f dmenu.c`, and `sh -n` on both installed launchers exited 0. Launchers were not executed against host caches or shells.
+- `make dist` ran only in `dist-source`, deliberately containing disposable build outputs and local configuration. Archive `dist-source/dmenu-5.4.tar.gz` contains one root directory and exactly 17 files: `LICENSE`, `Makefile`, `README`, `arg.h`, `config.def.h`, `config.mk`, `dmenu.1`, `drw.h`, `util.h`, `dmenu_path`, `dmenu_run`, `stest.1`, `clipmenu-preview`, `drw.c`, `dmenu.c`, `stest.c`, `util.c`. No local `config.h`, binaries, objects, `.omp` or other development artifacts are present. All archived files match repository bytes, including the corrected current integration/rollback README and unchanged Makefile. The helper is 0755 with SHA256 `07ae42e9083b4550c589dab50dea83d7c6992df1ddfe1c757c0060a3d8643f22`; archive SHA256 is `0a3e000ef99b46f0c7a3ff0a8855d332bf6e650242c53502274ab274f0c173a4`.
+- Archive members were checked for duplicates, absolute/traversal paths and nonregular/nondirectory types, then extracted with Python's `data` filter into an empty directory. `make PREFIX=/usr` and `make install DESTDIR=/var/tmp/dmenu-checkpoint-6c.7UPyUs/archive-stage PREFIX=/usr` succeeded from extracted distributed defaults, producing the same six paths/modes and no helper. Archive-build stderr was empty. Packaging and generic installation rules were not changed.
+- Minimal README corrections: name binary/manual/helper backups and example actual `/usr` paths, record destinations and prior existence, restore the previous launcher executable/arguments without `-P` first, and remove only files recorded as newly introduced. The helper-only shell example now stops on backup/setup/install failure and rejects symlink destinations rather than permitting replacement through them. No installation mechanism was added.
+- Rollback used only `stage/rollback-fixtures/{existing,absent,symlink}`. The helper installation snippet was extracted verbatim from the corrected README and executed with synthetic HOME. `cp -Pp` backups, disposable binary/manual replacement and restoration recovered all three pre-existing fixture files byte-identically, with original modes and mtimes. The absent case removed only the three newly introduced files. Exact recorded previous `CM_LAUNCHER` and argument bytes were restored before file rollback; unrelated fixture bytes were unchanged. A pre-existing helper symlink was rejected with status 1 and its target unchanged. All positive commands exited 0; this intentional rejection is not a failure.
+- Neither deployment nor rollback requires clipboard-history migration or daemon restart: the optional integration changes only executables/manuals/helper and launcher invocation, not the history format or daemon. No working DISPLAY, clipboard, PRIMARY, history, daemon, Xmonad, host installation/configuration, GUI, sanitizer, lifecycle or helper-churn suite was accessed or run. Production C, accepted helper, launchers and build rules remain unchanged; no active-worktree clean/dist ran.
+- Closure checks: `openspec instructions apply --change add-text-preview --json` confirmed 19/21 with only 6.4 and 6.5 pending. `openspec validate add-text-preview --strict` exited 0; `openspec validate --all --strict` reported 1 passed, 0 failed. All 27 pre-existing untracked files matched before/after SHA256, mode, size and mtime (`untracked-before.json` / `untracked-after.json`). Index remained clean; only README and this tasks file were modified. No commit was created. No unresolved delivery-verification failure was found.
+
+## Focused pre-Xmonad multiline-label improvement
+
+- Explicitly authorized visual-only addition, not completion of task 6.4 or
+  6.5: progress remains 19/21 and both delivery gates remain unchecked.
+  Starting branch/HEAD matched `dev/add-text-preview-next` /
+  `f5fcb482b3507886235d330ad80d3b9c48767146`; tracked/index state was clean.
+- Read the installed clipmenu launcher and label-producing `clipmenud`
+  read-only, without executing either. The exact terminal count is
+  ` (N lines)`, not `(N)`. The launcher passes the original label unchanged.
+- `drawitem()` alone changes production behavior: only preview-enabled,
+  overflowing recognized labels reserve the suffix and use clipped
+  prefix/ellipsis/suffix runs. No item mutation, cache, generic drawing,
+  helper protocol, matching, pane geometry or scrolling change.
+- Disposable baseline/current/copied-local-header and distributed-default
+  C99 builds with `CC='cc -Wextra'` exited 0; each retains the same four
+  pre-existing signedness warnings. Current `dmenu -v` and
+  `stest -f dmenu.c` exited 0.
+- Focused command: `python3 tests/preview-label.py --binary
+  /var/tmp/dmenu-label-h67f4lq0/current/dmenu --baseline
+  /var/tmp/dmenu-label-h67f4lq0/baseline/dmenu --probe
+  /var/tmp/dmenu-label-h67f4lq0/current/preview-label --xvfb
+  /tmp/dmenu-preview-checkpoint-RBbWFs/xvfb/usr/bin/Xvfb --output
+  /var/tmp/dmenu-label-h67f4lq0/accepted` exited 0.
+  The driver owns its X server; real-Xft checks cover widths 1–200 in
+  normal/selected/output schemes, suffix-only narrow rows, fitting labels
+  with/without counts, malformed counts, independent suffix/ellipsis pixels
+  and all four item boundaries. Actual menus prove complete helper stdin and
+  Return stdout with a long label and three-line payload, plus pixel-identical
+  no-preview baseline/current rendering for short, short-count and long labels.
+- The same pixel probe compiled against the starting source fails at the
+  200-pixel case with `terminal suffix is not independently right-aligned
+  and clipped`, confirming detection where sufficient count space exists.
+  Final accepted screenshot was visually inspected: shortened label and
+  complete `(3 lines)` remain in the left pane. Screenshots, stdout/stderr,
+  build/validation logs and failed harness-development attempts are retained
+  under `/var/tmp/dmenu-label-h67f4lq0`; earlier failed attempts are not passing
+  evidence. README documents reproducible probe build/run instructions.
+- Strict change validation exited 0. Local `config.h`, binaries and objects
+  match their saved SHA256 values. No full GUI/lifecycle suite, sanitizer run,
+  manual Xmonad check, installation, commit, daemon execution, history access,
+  real clipboard operation or installed-binary change was performed.
+  Existing font coverage/shaping limitations remain; an impossibly narrow
+  count is clipped rather than guaranteed readable.
+
+## Checkpoint 6D: human-assisted Xmonad verification
+
+- Scope: task 6.4 only. Task 6.5 remains unchecked; no installation or deployment.
+- Baseline: branch `dev/add-text-preview-next`, HEAD
+  `92485bdccee97347ad170931019ce4efc0a33824`; tracked/index state was clean.
+  All 27 pre-existing untracked files retained identical SHA256, mode, size and
+  mtime before preparation and after the operator runs.
+- Disposable workspace: `/tmp/dmenu-6d-aHfrK68C`; source copy: `source/`;
+  freshly built binary: `source/dmenu`. Tracked files and the existing local
+  `config.h` were copied without copying worktree binaries/objects. Commands
+  actually run: `/usr/bin/python3 /tmp/dmenu-6d-aHfrK68C/prepare.py`, which ran
+  `make -C /tmp/dmenu-6d-aHfrK68C/source`, followed by
+  `/tmp/dmenu-6d-aHfrK68C/source/dmenu -v` (exit 0, `dmenu-5.4`).
+  Build exit 0, no warnings; `build.log` retains compiler commands.
+- Operator-selected target: actual Xmonad session, `DISPLAY=:1`,
+  Xinerama monitor 1, `DP-1-1-8`, `1920x1080+0+0`;
+  `Iosevka Nerd Font Mono-12`. Read-only `xrandr --listactivemonitors`,
+  `xdpyinfo -ext XINERAMA` and Fontconfig inspection established topology.
+  `fc-match` resolved Iosevka Nerd Font Mono Regular at
+  `/home/avo/.local/share/fonts/IosevkaNerd/IosevkaNerdFontMono-Regular.ttf`.
+  The running Xmonad executable was confirmed through `/proc`.
+
+### Synthetic fixture and exact operator commands
+
+Fixtures remain outside clipmenu storage: `entries.txt`, `fixtures.json`,
+`helper`, `expected-long.stdout`; their exact generator is `prepare.py` in the
+disposable workspace. The helper accepts label plus LF on stdin, looks up only
+the synthetic JSON and emits its UTF-8 payload. Its request log contains only
+fixture indices. Six direct helper smoke invocations produced byte-exact
+expected payloads before any GUI launch.
+
+| Entry | Synthetic content |
+|---|---|
+| `01 Short single line` | One short preview line. |
+| `02 Long first line ` + `visible-prefix-wide-text-` repeated 24 times + ` (3 lines)` | `LONG FIRST LINE: ` plus `abcdefghij ` repeated 90 times, an empty line and `Third logical line.` |
+| `03 Unicode café Ελληνικά 日本語 漢字 🙂 Ｗｉｄｅ (4 lines)` | Accented/Greek text, CJK/fullwidth/emoji, `Unicode café 漢字 🙂 ` repeated 60 times and a final Unicode row. |
+| `04 Empty lines and wrapping (8 lines)` | Explicit empty rows, `wrapped words ` repeated 110 times and a final row. |
+| `05 Scrollable preview (90 lines)` | Rows 001–090, each `Row NNN: synthetic scrolling content; first=001 last=090.` plus LF. |
+| `06 Plain short entry` | Short unsuffixed label with its own preview. |
+
+The operator manually ran each command below, one at a time. The assistant did
+not launch the GUI or inject input:
+
+```sh
+DISPLAY=:1 /usr/bin/python3 /tmp/dmenu-6d-aHfrK68C/manual.py --monitor 1 --font 'Iosevka Nerd Font Mono-12' --run inspect
+DISPLAY=:1 /usr/bin/python3 /tmp/dmenu-6d-aHfrK68C/manual.py --monitor 1 --font 'Iosevka Nerd Font Mono-12' --run return
+DISPLAY=:1 /usr/bin/python3 /tmp/dmenu-6d-aHfrK68C/manual.py --monitor 1 --font 'Iosevka Nerd Font Mono-12' --run escape
+```
+
+Each command launched this argv with `entries.txt` on stdin and private
+per-run stdout/stderr files, never a shell launcher:
+
+```sh
+/tmp/dmenu-6d-aHfrK68C/source/dmenu -i -l 12 -m 1 -fn 'Iosevka Nerd Font Mono-12' -p 'Synthetic 6D' -P /tmp/dmenu-6d-aHfrK68C/helper
+```
+
+The runner limited each process to 180 seconds and supplied recovery from
+another terminal/SSH/TTY:
+
+```sh
+pkill -KILL -u "$(id -u)" -f '^/tmp/dmenu-6d-aHfrK68C/source/dmenu '
+```
+
+### Human observations, separate from process evidence
+
+The operator initially reported no problems and then explicitly confirmed that
+every listed manual checklist item was inspected without problems:
+
+- Correct intended monitor/font; full-width input row and 40/60 pane balance.
+- Normal, selected and output highlighting; text/background clipping; no
+  interference between list and preview panes.
+- Visible terminal line-count suffixes on long labels, mixed-width Unicode,
+  soft wrapping, explicit empty lines and long-line behavior.
+- All six preview scrolling bindings, viewport boundaries, reset on selecting
+  another item, repeated selection/helper requests and the short unsuffixed entry.
+- Normal input, keyboard grab/release and normal terminal input after exits.
+- Return and Escape behavior. For output highlighting the operator explicitly
+  authorized an exception allowing synthetic Ctrl-Return only in this disposable
+  dmenu with stdout captured to a file; no launcher or X selection operation.
+  Shift-Return remained excluded.
+
+### Supporting process evidence and limits
+
+The operator supplied terminal results; the assistant separately read the
+saved `command.json`, `result.json`, stdout and stderr files:
+
+| Run directory in the disposable workspace | Exit | Forced | Stdout | Stderr |
+|---|---|---|---|---|
+| `inspect-1793198191665353484` | 1 | false | 21 bytes from synthetic Ctrl-Return; not the empty-output Escape check | empty |
+| `return-1793198392466212989` | 0 | false | 630 bytes, byte-identical to complete original long label plus LF | empty |
+| `escape-1793198409271705166` | 1 | false | empty | empty |
+
+No defects were reported. Human visual confirmation, not screenshots, prior
+Xvfb runs or these process results, satisfies this manual gate. Coverage is
+limited to the selected monitor/font and synthetic fixtures; no claim of all
+font glyph coverage, shaping or other monitor configurations is made.
+No real clipmenu reader, launcher, daemon, history/cache, clipboard or PRIMARY
+selection was accessed. No automated input injection, Xmonad configuration
+change/restart, production C/helper change, installation or full 6A/6B rerun
+was performed. Disposable artifacts remain for independent review.
+
+## Checkpoint 6E: final documentation and acceptance-evidence audit
+
+- Authorized only task 6.5. Baseline matched branch `dev/add-text-preview-next`
+  and HEAD `e1805d26bbaacbbbaf9086667d99aba4c00a1bfc`; tracked/index state
+  was clean. The existing 27 untracked files include `.omp/`, local `config.h`,
+  binaries and objects; none is a cleanup target. No production C, helper,
+  configuration, build rule, retained test or earlier evidence was changed.
+- Compared proposal, design and both delta specs with actual `dmenu.c`,
+  `drw.c`/`drw.h`, helper, headers, Makefile, manual and retained tests.
+  All 16 requirements and 30 scenarios have identifiable source and accepted
+  evidence below; no unsupported mandatory outcome or production defect was
+  identified. This is evidence inspection, not a fresh behavioral-suite pass.
+
+| Requirements / acceptance scenarios | Source and identifiable supporting evidence |
+| --- | --- |
+| Explicit opt-in/default compatibility; stable split geometry | `dmenu.c` CLI validation, setup and no-preview `XNextEvent` branch; early `evidence/gui-checkpoint*`, 6A `async/results.json` (90 PASS), supplement and no-preview comparisons; 6B idle trace/debugger records. |
+| Preview-list multiline count visibility, narrow widths and compatibility | Preview-only `drawitem()` with immutable item text; focused pre-Xmonad label evidence at `/var/tmp/dmenu-label-h67f4lq0`, real-Xft width/scheme/boundary probe and helper/stdout checks, plus 6D human confirmation. |
+| Original-label protocol, literal input and failed execution | `previewstart()`/`previewwrite()` direct `execv`, original label plus LF, discarded stderr; `evidence/async-review/` privacy/failure results and 6A async cases. |
+| Selection-consistent updates and matching variants | Central `previewselect()` identity/generation reconciliation; reviewed fuzzy integration evidence, 4B scroll/input matrix and 6A scroll results (84 navigation cases). |
+| Responsive bounded work; terminal precedence | Nonblocking pipes, 40 ms debounce, 1000 ms collection deadline, 4096-byte turns and 65536-byte cap/extra-byte probe; `preview-boundary` eight-report results and 6A/6B hang, overflow, stale-result and cancellation observations. |
+| Separately bounded preparation; safe multiline text | Incremental UTF-8/control/tab preparation, 256-codepoint/4 ms work bounds and clipped row rendering; `evidence/checkpoint-4a*`, native `preview-text` and real-Xft `preview-clip` results, 6A text checks and 6B native/sanitized clipping. |
+| Independent scrolling and selection reset | Prepared-row offset/capacity logic; 4B native/GUI checks, 6A scroll results and 6D human observations. The accepted `-l 1` Truncated status-only exception remains unchanged. |
+| Output/cancellation contracts | Original Return/Shift-Return/Ctrl-Return/Escape paths; 6A `supplement.json` records 36 output cases plus four appearance comparisons; 6D Return/Escape process records support the separate manual gate. |
+| Resource lifecycle/privacy | Group teardown before leader reaping and nonblocking exit; accepted async-review 201-start/200-sample results, 6B focused resource cases, SIGKILL-dispatch observations and no-preview allocation/idle records. |
+| Compatible clipmenu cache mapping and environment overrides | `clipmenu-preview` unset-only defaults and full label-plus-LF checksum filename; 5A/6A helper regressions, including literal labels and Bash checksum equivalence. |
+| Original payload bytes, multiline/trailing data and duplicate/collision semantics | Unmodified quoted file streaming and unchanged menu label; helper byte-preservation checks and 5B/6A synthetic launcher restoration. Duplicate/collision behavior follows the same current checksum-named file, not a stronger identity guarantee. |
+| Missing data/constrained reads; unchanged clipmenu integration | Helper USER/private-directory/payload checks; 5A rejection/preservation results, 5B and 6A explicit-Bash/fake-xsel restoration. No real selections or daemon required. |
+| Distribution, generic install, backups and rollback | Makefile explicitly distributes but does not install the helper; 6C `delivery-result.json`, `installed.json`, `archive-contents.json` and `rollback-result.json` under `/var/tmp/dmenu-checkpoint-6c.7UPyUs`. Six installed files, 17 distributed files; synthetic existing/absent/symlink rollback cases. |
+| Human Xmonad acceptance | 6D operator explicitly confirmed the checklist on monitor 1 and Iosevka Nerd Font Mono-12. Saved `/tmp/dmenu-6d-aHfrK68C/{inspect-1793198191665353484,return-1793198392466212989,escape-1793198409271705166}/result.json` records are separate process evidence, not automated proof of visual observations. |
+
+- Inspected saved 6A final results, 6C delivery/rollback inventories and 6D
+  process results. The earlier failed 6A consolidated driver remains failed;
+  its final supplement outcome does not retroactively turn it into a pass.
+  The 6B archive still contains 204 regular files and matches recorded SHA256
+  `ac96b3b8a9399808f7b11e3bbdf6c31ad4486de22ed42b88d7be8c6431cac7ca`.
+  External `/tmp` and `/var/tmp` evidence remains available at audit time and
+  must be preserved before system cleanup; nothing was moved or rewritten.
+- Documentation corrections: README now lists actual build dependencies,
+  explicit positive `-l`, current development status and final evidence limits;
+  AGENTS.md removes stale 5B/group-6 authorization and pending-gate claims and
+  distinguishes focused regressions from a unified test target; `dmenu.1`
+  replaces the obsolete “Clipboard integration is not yet implemented” claim
+  with the existing optional helper boundary. Proposal-era observations and
+  earlier checkpoint records are historical, not rewritten as current results.
+- Hygiene: no compile-time synthetic injection remains in production/build
+  inputs. All 12 retained standalone test files serve documented behavioral
+  checks; `preview-label.py` imports `preview-scroll.py`, so that README copy
+  dependency is intentional. No tracked fixture was demonstrably obsolete;
+  none was deleted. Historical fixture screenshots, source diffs, diagnostic
+  controls and superseded failures remain provenance, not production hooks.
+- Known limits remain: Fontconfig/Xft leak-enabled GUI exits report 8839 bytes
+  in 128 allocations; GUI leak-disabled ASan is not leak-clean coverage.
+  Default ASan quarantine exceeded the overflow RSS budget; bounded-quarantine
+  results do not establish default-quarantine RSS stability or a production
+  leak. The accepted 6B working-DISPLAY search violation remains a protocol
+  exception, with no inferred exact query count or stronger isolation claim.
+  Valgrind was unavailable; OpenBSD runtime/pledge and other physical-monitor
+  configurations remain untested. Human 6D covers only its chosen monitor/font;
+  Xft scalar wrapping does not promise full shaping or universal glyph coverage.
+  Trusted helpers/ancestors/PATH/same-UID peers, non-atomic cache checks,
+  checksum collisions, transient payloads and escaped groups retain their
+  documented limits; finite resource/frame samples are not universal proofs.
+- Fresh lightweight checks: six documented Python harness `--help` invocations
+  exited 0 with no working DISPLAY; retained Python files parsed successfully;
+  `sh -n` passed for the helper and both launchers. No GUI, sanitizer, lifecycle,
+  resource or packaging suite was rerun; no install, clipboard/history access,
+  Xmonad change, staging, commit, archive or deployment occurred.
+- Closure checks: `openspec validate add-text-preview --strict` exited 0;
+  `openspec validate --all --strict` reported 1 passed, 0 failed.
+  `git diff --check` passed after removing a newly added blank EOF line.
+  `groff -Tutf8 -man dmenu.1` rendered the corrected optional-helper text
+  with exit 0 and empty stderr. OpenSpec apply context confirmed 21/21,
+  zero remaining. Only task 6.5 changed checkbox state.
+- Preservation checks matched all 27 original untracked files by SHA256,
+  mode, size and mtime, and the Git index byte hash remained unchanged.
+  All tracked files outside README, AGENTS.md, dmenu.1 and this tasks file
+  retained their original bytes, including production, tests and evidence.
+  Changes remain unstaged and uncommitted for independent review.
