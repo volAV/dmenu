@@ -13,6 +13,7 @@
 #include <string.h>
 #include <strings.h>
 #include <time.h>
+#include <sys/stat.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -339,10 +340,50 @@ previewfd(int fd)
 }
 
 static void
+previewexec(void)
+{
+	char *argv[] = { previewcmd, NULL };
+	const char *path, *end;
+	char *candidate;
+	size_t namelen, pathlen, len;
+	struct stat st;
+
+	if (previewcmd[0] == '/') {
+		execv(previewcmd, argv);
+		_exit(127);
+	}
+	if (!(path = getenv("PATH")))
+		_exit(127);
+	namelen = strlen(previewcmd);
+	pathlen = strlen(path);
+	if (namelen > SIZE_MAX - 2 || pathlen > SIZE_MAX - namelen - 2 ||
+	    !(candidate = malloc(pathlen + namelen + 2)))
+		_exit(127);
+	for (;;) {
+		end = strchr(path, ':');
+		len = end ? (size_t)(end - path) : strlen(path);
+		memcpy(candidate, path, len);
+		if (len)
+			candidate[len++] = '/';
+		memcpy(candidate + len, previewcmd, namelen + 1);
+		/* PATH and its directories are trusted; checks are not atomic. */
+		if (stat(candidate, &st) == 0 && S_ISREG(st.st_mode) &&
+		    access(candidate, X_OK) == 0) {
+			argv[0] = candidate;
+			execv(candidate, argv);
+			_exit(127); /* No shell fallback or later-candidate retry. */
+		}
+		if (!end)
+			break;
+		path = end + 1;
+	}
+	_exit(127);
+}
+
+static void
 previewstart(void)
 {
 	int in[2] = { -1, -1 }, out[2] = { -1, -1 }, nullfd = -1;
-	char *const argv[] = { previewcmd, NULL };
 	pid_t pid;
 
 	preview.due = 0;
@@ -367,8 +408,7 @@ previewstart(void)
 		closefrom(3);
 		signal(SIGPIPE, SIG_DFL);
 		signal(SIGCHLD, SIG_DFL);
-		execv(previewcmd, argv);
-		_exit(127);
+		previewexec();
 	}
 	preview.pid = pid;
 	if (setpgid(pid, pid) == 0 || errno == EACCES)
@@ -1441,9 +1481,9 @@ setup(void)
 static void
 usage(void)
 {
-	die("usage: dmenu [-bFfiv] [-l lines] [-p prompt] [-P /helper] [-fn font] [-m monitor]\n"
+	die("usage: dmenu [-bFfiv] [-l lines] [-p prompt] [-P helper] [-fn font] [-m monitor]\n"
 	    "             [-nb color] [-nf color] [-sb color] [-sf color] [-w windowid]\n"
-	    "       -P requires an absolute executable path and a positive -l");
+	    "       -P requires an absolute path or bare executable name and a positive -l");
 }
 
 int
@@ -1499,7 +1539,8 @@ main(int argc, char *argv[])
 			usage();
 
 	if (previewcmd) {
-		if (previewcmd[0] != '/' || !linearg || !isdigit((unsigned char)linearg[0]))
+		if (!*previewcmd || (previewcmd[0] != '/' && strchr(previewcmd, '/')) ||
+		    !linearg || !isdigit((unsigned char)linearg[0]))
 			usage();
 		errno = 0;
 		n = strtoul(linearg, &end, 10);

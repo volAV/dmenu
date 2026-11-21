@@ -15,7 +15,7 @@ utility, and two POSIX shell launcher scripts. The source version is defined in
 - `dmenu_path`: executable-name discovery and its per-user cache.
 - `dmenu_run`: asynchronous pipeline from executable discovery to menu to shell.
 - `clipmenu-preview`: optional read-only POSIX helper for clipmenu 6 payloads;
-  included in source distributions, but not installed by generic `make install`.
+  included in source distributions and generic `make install`/`make uninstall`.
 - `config.def.h`: distributed compile-time defaults; `config.h`: active local
   compile-time configuration; `config.mk`: compiler, linker, and install paths.
 - `dmenu.1`, `stest.1`: command-line and interaction documentation.
@@ -37,8 +37,9 @@ Xinerama is optional by disabling its two settings there.
 | --- | --- | --- |
 | Build | `make` | Builds `dmenu` and `stest`; uses existing `config.h`. |
 | Clean build outputs | `make clean` | Removes binaries, objects, and the versioned release tarball; keeps `config.h`. |
-| Install | `make install` | Uses `PREFIX` and `MANPREFIX`; distributed prefix is `/usr/local`, while local `config.mk` overrides may differ. |
+| Install | `make install` | Installs dmenu, stest, launchers and clipmenu-preview (0755), plus manuals; uses `PREFIX` and `MANPREFIX`. |
 | Staged install | `make install DESTDIR=/tmp/dmenu-stage PREFIX=/usr` | Choose a disposable staging directory; does not install into the host `/usr`. |
+| Uninstall | `make uninstall` | Removes the installed executable/helper/manual paths using the same `DESTDIR`, `PREFIX` and `MANPREFIX`; does not restore backups. |
 | Source archive | `make dist` | Runs clean, then packages the Makefile's explicit source list, not every repository file. |
 | Shell syntax | `sh -n dmenu_path && sh -n dmenu_run` | Checks both launchers without executing them. |
 | Helper regression | `sh -n clipmenu-preview && python3 tests/clipmenu-preview.py` | Synthetic fixtures only; never runs clipmenu, xsel or X clients. |
@@ -95,8 +96,18 @@ The `add-text-preview` implementation and acceptance checkpoints 1–6D are
 accepted; Checkpoint 6E covers only the final documentation/evidence audit
 (task 6.5). Deployment and host installation remain separately unauthorized;
 completion of the development gates does not authorize either.
-`-P /absolute/helper` requires an explicit positive decimal `-l`. The executable
-receives the selected label plus LF on stdin; argv/environment never carry it.
+`-P /absolute/helper` and `-P clipmenu-preview` require an explicit positive
+decimal `-l`. Bare names resolve in the forked helper child on each request:
+first executable regular file in inherited PATH order, skipping missing,
+non-regular and non-executable candidates. Symlinks to regular executables
+are allowed. Empty components mean the inherited working directory; relative
+components are relative to it. Unset PATH supplies no candidates; empty PATH
+searches only that working directory. Absolute paths bypass lookup; empty names
+and relative slash paths are usage errors. The selected candidate uses execv
+without shell fallback or later-candidate retry; failed lookup/execution shows
+Unavailable. Trust PATH directories, searched working directory and helper code;
+checks are not atomic. The executable receives the selected label plus LF on
+stdin; argv/environment never carry it.
 The single helper group uses nonblocking I/O, 40 ms debounce, a 1000 ms deadline
 and 65536-byte cap. Overflow takes precedence over forced producer failure.
 Exit releases the keyboard without waiting for group termination. Trusted
@@ -127,6 +138,25 @@ containing fake xsel. Never run the wrapper, daemon or real xsel in this check.
 clipboard/PRIMARY restoration bytes against synthetic multiline fixtures.
 README documents the exact CM_LAUNCHER invocation and optional installation
 and rollback; these instructions are not deployment authorization.
+
+After separately authorized `make install PREFIX="$HOME/.local"`, the intended
+Xmonad command is `clipmenu -i -p Clipboard -P clipmenu-preview -l 12`.
+The inherited Xmonad/clipmenu/dmenu environment must select the intended dmenu
+through PATH or CM_LAUNCHER and expose the installation bin directory in PATH;
+do not assume ~/.local/bin is automatically visible. No actual Xmonad changes
+or host installation are authorized by development work. DESTDIR prepends a
+staging root to PREFIX/bin and MANPREFIX/man1; default MANPREFIX is
+PREFIX/share/man. Matching uninstall removes the same files, not backups.
+
+`python3 tests/preview-install.py` builds and checks staged install/uninstall
+and dist in a disposable copy with local config.h. Run the focused GUI lookup
+regression with `python3 -B tests/preview-path.py --binary /absolute/current/dmenu
+--baseline /absolute/baseline/dmenu --xvfb /absolute/Xvfb
+--output /absolute/empty/results`; build both binaries in disposable copies
+with the same configuration. It owns its Xvfb and checks PATH/absolute lookup,
+failure states, literal names, exact bytes, visible preview and no-preview
+compatibility using synthetic helpers only. It never runs clipmenu or accesses
+clipboard/history. `-B` prevents import caches in the active checkout.
 
 Preview-only list drawing preserves a terminal clipmenu ` (N lines)` count
 for overflowing labels (canonical ASCII N >= 2), without editing item text.

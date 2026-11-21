@@ -11,7 +11,7 @@ dmenu \- dynamic menu
 .RB [ \-p
 .IR prompt ]
 .RB [ \-P
-.IR /helper ]
+.IR helper ]
 .RB [ \-fn
 .IR font ]
 .RB [ \-nb
@@ -66,8 +66,9 @@ from 0.
 .BI \-p " prompt"
 defines the prompt to be displayed to the left of the input field.
 .TP
-.BI \-P " /helper"
-enables asynchronous text previews from the absolute executable path supplied,
+.BI \-P " helper"
+enables asynchronous text previews from an absolute executable path or
+a nonempty bare executable name without slashes,
 requiring an explicit positive decimal
 .BR \-l .
 The input spans the window above an approximately 40% item column and 60%
@@ -80,6 +81,19 @@ Its stdin receives the unchanged selected label followed by one newline and
 then EOF. Its stdout supplies preview text; stderr is discarded.
 Treat the helper as trusted local code, not a sandbox. Labels and preview
 data are never placed in command arguments, environment variables or diagnostics.
+.IP
+Bare names are resolved in the helper child for each request using inherited
+PATH in colon-separated order. Missing, non-regular and non-executable candidates
+are skipped; the first executable regular file (including a symlink to one)
+is selected. Empty components mean the inherited working directory; relative
+components are relative to it. Unset PATH provides no candidates; empty PATH
+searches only the working directory. Absolute paths bypass PATH.
+Relative paths containing slashes, such as ./helper, are rejected.
+Names are literal filenames, not shell command strings.
+There is no ENOEXEC-to-shell fallback and no later-candidate retry after
+selected-candidate execution fails. Missing helpers and execution failures
+show Unavailable. Trust all searched directories and the working directory
+when searched; lookup checks are not atomic against filesystem changes.
 .IP
 Selection changes debounce for 40 milliseconds and cancel obsolete work.
 The 1000 millisecond monotonic deadline covers execution, stdin delivery,
@@ -120,9 +134,25 @@ prepare text again, edit input or move selection. Existing Ctrl, Alt-letter
 and unmodified navigation commands are unchanged.
 With one body row, Truncated remains status-only; use at least two body rows
 to read truncated text.
-Optional clipmenu integration uses the standalone clipmenu-preview helper;
-see README for its read-only protocol and explicit integration instructions.
-The helper is not installed by generic make install.
+Optional clipmenu integration uses the standalone clipmenu-preview helper,
+installed with mode 0755 alongside dmenu by make install and removed by
+make uninstall. Both use DESTDIR followed by PREFIX/bin; manuals retain
+MANPREFIX/man1 (default PREFIX/share/man/man1).
+For a separately authorized user-local installation, use
+make install PREFIX="$HOME/.local"; removal uses make uninstall with the same
+PREFIX and any MANPREFIX override. Uninstall does not restore overwritten files.
+See README for staging, backups and the helper's read-only protocol.
+The intended Xmonad invocation is:
+.IP
+.nf
+clipmenu \-i \-p Clipboard \-P clipmenu-preview \-l 12
+.fi
+.IP
+The actual environment inherited by Xmonad and launched clipmenu/dmenu must
+select the intended dmenu (through PATH or CM_LAUNCHER) and include the helper's
+installation bin directory in PATH. Do not assume ~/.local/bin is automatically
+visible to Xmonad. These instructions do not authorize deployment or change
+Xmonad configuration.
 Enter still outputs the original label, never preview content.
 Without
 .BR \-P ,

@@ -15,10 +15,29 @@ Installation
 Edit config.mk to match your local setup (dmenu is installed into
 the /usr/local namespace by default).
 
-Afterwards enter the following command to build and install dmenu
-(if necessary as root):
+Normal `make install` builds and installs dmenu, stest, dmenu_path, dmenu_run
+and clipmenu-preview under `$(PREFIX)/bin`, with mode 0755, plus the dmenu
+and stest manuals under `$(MANPREFIX)/man1`. MANPREFIX defaults to
+`$(PREFIX)/share/man`. `make uninstall` removes those same files; it does
+not restore overwritten versions or remove unrelated files.
 
-    make clean install
+For a separately authorized user-local installation and matching removal:
+
+    make install PREFIX="$HOME/.local"
+    make uninstall PREFIX="$HOME/.local"
+
+These are alternatives, not a command sequence to run together. Back up any
+existing destination files before installation. No host installation is
+authorized by development verification. PREFIX need not be changed in config.mk.
+For packaging, DESTDIR prepends a staging root to both executable and manual
+destinations; in a disposable source copy, for example:
+
+    make install DESTDIR=/absolute/private/stage PREFIX=/usr
+    make uninstall DESTDIR=/absolute/private/stage PREFIX=/usr
+
+This maps executables to `/absolute/private/stage/usr/bin` and manuals to
+`/absolute/private/stage/usr/share/man/man1`. If MANPREFIX is overridden, pass
+the same override to uninstall. `make dist` continues shipping the helper once.
 
 
 Running dmenu
@@ -28,13 +47,30 @@ See the man page for details.
 
 Text preview (development only)
 -------------------------------
-`-P /absolute/helper -l 12` runs a trusted executable directly and draws its
-text in the approved 40/60 split below the search input. The helper receives
-the unchanged selected label plus LF through stdin, then EOF. Its argv has
-only the executable path; stdout is preview data and stderr goes to /dev/null.
+`-P /absolute/helper -l 12` or `-P clipmenu-preview -l 12` runs a trusted
+executable directly and draws its text in the approved 40/60 split below the
+search input. The helper receives the unchanged selected label plus LF through
+stdin, then EOF. Its argv has only the executable path; stdout is preview data
+and stderr goes to /dev/null.
 No clipboard text is evaluated as a command or added to the environment.
 An explicit positive decimal `-l` is required; preview mode is never enabled
 without `-P`.
+
+A nonempty name without a slash is resolved in the forked helper child on
+each request, using inherited PATH from left to right. Missing, non-regular
+and non-executable candidates are skipped; the first executable regular file
+(including a symlink to one) is selected. Empty PATH components mean the inherited
+working directory; relative components are relative to that directory. Unset
+PATH supplies no candidates; explicitly empty PATH searches only the working
+directory. Absolute helper paths bypass PATH; relative paths containing slashes
+such as `./helper` are rejected.
+
+Execution uses execv, never shell evaluation or an ENOEXEC-to-shell fallback.
+After a candidate is selected, execution failure does not try later candidates.
+Missing helpers and failed execution show Unavailable, preserving selection and
+cancellation. Trust all searched directories, the working directory when searched,
+and helper code. Checks are not atomic against filesystem changes; this is not
+a sandbox. A valid executable format or interpreter header is required.
 
 One request owns a helper process group. Selection changes cancel obsolete
 work and debounce for 40 ms. A 1000 ms monotonic deadline covers execution,
@@ -88,10 +124,10 @@ cursor movement, Expose and same-selection redraws retain it. Pending/loading
 or empty results do not scroll. Ctrl shortcuts and existing Alt-letter/list
 navigation retain their original behavior.
 
-The standalone `clipmenu-preview` adapter is included in the source distribution,
-but is not installed by the generic `make install` target. Do not replace a
-working installed dmenu or enable this integration against real history without
-separate deployment authorization.
+The standalone `clipmenu-preview` adapter is included in the source distribution
+and normal `make install`/`make uninstall`. Do not replace a working installed
+dmenu or enable this integration against real history without separate
+deployment authorization.
 
 The adapter accepts no arguments. It reads the original display label plus LF
 from stdin with `IFS= read -r`, then streams the cached payload unchanged,
@@ -102,7 +138,18 @@ letters, digits, `_`, `.`, or `-`, and cannot be empty, `.` or `..`. The filenam
 is the complete `cksum` output for the exact label plus one LF: CRC, a space,
 and byte count. It does not regenerate labels or read `line_cache`.
 
-Use this exact development invocation with the installed clipmenu launcher:
+After an explicitly authorized installation, the intended Xmonad command is:
+
+    clipmenu -i -p Clipboard -P clipmenu-preview -l 12
+
+Both the intended dmenu executable and helper must be discoverable in the actual
+environment inherited by Xmonad and its launched clipmenu/dmenu process.
+`$HOME/.local/bin` is not automatically visible to Xmonad. Ensure its inherited
+PATH includes the chosen installation bin directory, in the intended order.
+If clipmenu's CM_LAUNCHER is overridden, it must identify the intended dmenu.
+No working Xmonad configuration is changed by these instructions.
+
+An absolute-path development invocation remains supported:
 
     CM_LAUNCHER=/home/avo/Projects/private/dmenu-preview-next/dmenu \
       clipmenu -i -p Clipboard \
@@ -126,6 +173,22 @@ directories, PATH tools and same-UID peers are trusted. Shell path checks are
 not atomic against concurrent mutation; concurrent rewrites can expose changing
 or partial bytes, and streaming I/O failure can expose a prefix. No locking,
 snapshot consistency, sandboxing or stronger identity guarantee is provided.
+
+Focused install and literal helper-lookup regressions:
+
+    python3 tests/preview-install.py
+    python3 -B tests/preview-path.py \
+        --binary /absolute/disposable/current/dmenu \
+        --baseline /absolute/disposable/baseline/dmenu \
+        --xvfb /absolute/Xvfb --output /absolute/empty/results
+
+The install regression builds, stages install/uninstall and runs dist only in
+a disposable source copy, preserving local config.h. The lookup regression
+starts its own Xvfb and uses synthetic helpers, controlled PATH/cwd, exact bytes
+and screenshots; it never runs clipmenu or touches clipboard/history. Build
+both supplied binaries in disposable copies with the same local configuration;
+the baseline is the starting build. Output must be empty. `-B` avoids creating
+Python import caches in the checkout.
 
 Focused synthetic verification (does not run clipmenu or any X client):
 
@@ -159,45 +222,20 @@ real history/clipboard. It compares both fake clipboard and PRIMARY sink bytes
 with the original multiline fixture payload, and verifies the selected display
 label is unchanged. Checkpoint 5B results are recorded in OpenSpec tasks.md.
 
-Optional installation is a later, separately authorized action—not current
-deployment authorization. After approval and independent verification, choose
-the actual binary, manual and helper destinations; back up the existing dmenu
-binary and manual and any existing helper before replacing files, and record
-the prior `CM_LAUNCHER` executable and forwarded arguments so they can be
-restored. Install the helper explicitly at a user-selected executable path;
-the generic install target remains unchanged. Record each chosen destination
-and whether it existed. For example, with `PREFIX=/usr`, generic installation
-places dmenu at `/usr/bin/dmenu` and its manual at
-`/usr/share/man/man1/dmenu.1`; optional helper installation uses the separately
-chosen path. Save pre-existing files as `$backup/dmenu`, `$backup/dmenu.1`
-and `$backup/clipmenu-preview` using `cp -Pp`, and record the absolute backup
-directory. Stop if any backup fails. Do not overwrite a symlink destination:
-resolve and approve its actual target separately or stop.
-Rollback first restores the recorded previous `CM_LAUNCHER` executable and
-arguments without `-P`, then copies each saved file back to its recorded
-destination with `cp -Pp`. Remove only destinations recorded as absent before
-installation; never remove a pre-existing file without its saved replacement.
-Neither install nor rollback requires a daemon restart or history migration.
+Installation is a later, separately authorized action—not current deployment
+authorization. Before normal installation, record PREFIX, MANPREFIX and every
+destination's prior existence, and back up all existing executables and manuals
+that the target will replace, including clipmenu-preview. Preserve those files
+with `cp -Pp` in a recorded backup directory; stop if a backup fails. Do not
+overwrite a symlink destination without separately approving its actual target.
+Record the prior CM_LAUNCHER executable and forwarded arguments as well.
+
+Rollback first restores the recorded previous launcher invocation without `-P`,
+then restores each saved destination with `cp -Pp`. Remove only files recorded as
+absent before installation. `make uninstall` removes the full installed set at
+the supplied PREFIX/MANPREFIX; it is not a backup-restoration operation. Neither
+installation nor rollback requires a daemon restart or history migration.
 No install, replacement or real-history invocation is authorized here.
-
-For an explicitly approved helper-only installation (no dmenu replacement):
-
-    helper="$HOME/.local/libexec/clipmenu-preview"
-    backup=$(mktemp -d "$HOME/clipmenu-preview-backup.XXXXXX") || exit 1
-    [ ! -L "$helper" ] || exit 1
-    if [ -e "$helper" ]; then
-        cp -Pp -- "$helper" "$backup/clipmenu-preview" || exit 1
-    fi
-    install -d "$HOME/.local/libexec" || exit 1
-    install -m 755 ./clipmenu-preview "$helper" || exit 1
-
-Record the backup path and whether a helper previously existed. Change only
-the invocation's `-P` path to this absolute destination; `CM_LAUNCHER` still
-names the separately approved development binary. To undo this helper-only
-procedure, first restore the prior launcher configuration without `-P`, then
-restore the saved helper with `cp -Pp` or remove the newly created file if
-none existed. Replacing dmenu itself also requires the binary/manual backups
-described above and the separate group-6 delivery gates.
 
 The Checkpoint 5B integration smoke and fixture restoration evidence belong to
 the current OpenSpec change. Do not treat them as completion of the full
